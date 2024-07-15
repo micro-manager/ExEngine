@@ -5,6 +5,8 @@ import weakref
 
 from dataclasses import dataclass, field
 
+from exengine.kernel.executor import ExecutionEngine
+
 from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.notification_base import Notification
@@ -40,6 +42,7 @@ class AcquisitionEvent(ABC, Generic[TEventReturn]):
         future = self._future_weakref()
         if future is not None:
             future._notify_of_event_notification(notification)
+        ExecutionEngine.get_instance().publish_notification(notification)
 
     def _set_future(self, future: 'AcquisitionFuture'):
         """

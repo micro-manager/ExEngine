@@ -7,11 +7,9 @@ from typing import Deque
 import warnings
 import traceback
 from typing import Union, Iterable, List
-from dataclasses import dataclass
 import queue
-import sys
 
-
+from exengine.kernel.notification_base import Notification
 from exengine.kernel.acq_future import AcquisitionFuture
 from exengine.kernel.acq_event_base import AcquisitionEvent, Stoppable, Abortable
 from exengine.kernel.data_handler import DataHandler
@@ -30,6 +28,11 @@ class ExecutionEngine:
     _debug = False
     _exceptions = queue.Queue()
     _devices = {}
+    _notification_queue = queue.Queue()
+    _notification_subscribers = []
+    _notification_lock = threading.Lock()
+    _notification_thread = None
+    _shutdown_event = threading.Event()
 
     def __new__(cls, *args, **kwargs):
         with cls._lock:
@@ -44,6 +47,32 @@ class ExecutionEngine:
                 for _ in range(num_threads):
                     self._start_new_thread()
                 self._initialized = True
+
+    def subscribe_to_notifications(self, subscriber):
+        """
+        Subscribe an object to receive notifications
+        """
+        with self._notification_lock:
+            if len (self._notification_subscribers) == 0:
+                self._notification_thread = threading.Thread(target=self._notification_thread_run)
+                self._notification_thread.start()
+            self._notification_subscribers.append(subscriber)
+
+    def _notification_thread_run(self):
+        while not self._shutdown_event.is_set():
+            try:
+                notification = self._notification_queue.get(timeout=1)
+            except queue.Empty:
+                continue
+            with self._notification_lock:
+                for subscriber in self._notification_subscribers:
+                    subscriber.notification_published(notification)
+
+    def publish_notification(self, notification: Notification):
+        """
+        Publish a notification by adding it the publish queue
+        """
+        self._notification_queue.put(notification)
 
     @classmethod
     def get_instance(cls):
@@ -200,6 +229,7 @@ class ExecutionEngine:
         # For now just let the devices be garbage collected.
         # TODO: add explicit shutdowns for devices here?
         self._devices = None
+        self._shutdown_event.set()
         for thread in self._thread_managers:
             thread.shutdown()
         for thread in self._thread_managers:
