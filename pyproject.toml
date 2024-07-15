@@ -9,13 +9,18 @@ license = {file = "LICENSE"}
 classifiers = [
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent"
-]
+    ]
 dependencies = [
-	"mmpycorex"
 ]
 dynamic = ["version"]
 description = "Microscopy execution engine with support for multiple hardware backends"
 readme = "README.md"
+
+[project.optional-dependencies]
+micromanager = ["mmpycorex"]
+minimal = []  # A minimal installation without any specific backends
+
+
 
 [project.urls]
 Home = "https://github.com/micro-manager/ExEngine"

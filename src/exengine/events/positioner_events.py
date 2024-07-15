@@ -2,8 +2,8 @@ from typing import List, Union, Tuple, Optional
 import numpy as np
 from dataclasses import dataclass
 
-from pycromanager.execution_engine.kernel.acq_event_base import AcquisitionEvent
-from pycromanager.execution_engine.kernel.device_types_base import (DoubleAxisPositioner, SingleAxisPositioner,
+from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.device_types_base import (DoubleAxisPositioner, SingleAxisPositioner,
                                                     TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
 
 

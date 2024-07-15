@@ -3,7 +3,7 @@ Base classes for device_implementations that can be used by the execution engine
 """
 
 from abc import abstractmethod
-from pycromanager.execution_engine.kernel.device import Device
+from exengine.kernel.device import Device
 import numpy as np
 
 

@@ -2,10 +2,15 @@
 from typing import Iterable, Optional, Union
 from dataclasses import dataclass, field
 import itertools
-from pycromanager.execution_engine.kernel.acq_event_base import AcquisitionEvent, DataProducing, Stoppable
-from pycromanager.execution_engine.kernel.device_types_base import Camera
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates
+from exengine.kernel.acq_event_base import AcquisitionEvent, DataProducing, Stoppable
+from exengine.kernel.device_types_base import Camera
+from exengine.kernel.data_coords import DataCoordinates
+from exengine.kernel.notification_base import Notification, NotificationCategory
 
+class DataAcquired(Notification[DataCoordinates]):
+    category = NotificationCategory.Data
+    description = "Data has been acquired by a camera or other data-producing device and is now available"
+    # payload is the data coordinates of the acquired data
 
 @dataclass
 class ReadoutImages(AcquisitionEvent, DataProducing, Stoppable):
@@ -22,10 +27,13 @@ class ReadoutImages(AcquisitionEvent, DataProducing, Stoppable):
             specify the coordinates of the images that will be read out, should be able to provide at least num_images
             elements.
     """
+    image_coordinate_iterator: Iterable[DataCoordinates] = field(default=(DataCoordinates.construct(),))
     camera: Optional[Union[Camera, str]] = field(default=None)
     # TODO: should this change to a buffer object?
     num_images: int = field(default=None)
     stop_on_empty: bool = field(default=False)
+    notification_types = [DataAcquired]
+
 
     def execute(self) -> None:
         # TODO a more efficient way to do this is with callbacks from the camera
@@ -41,6 +49,7 @@ class ReadoutImages(AcquisitionEvent, DataProducing, Stoppable):
                     return
                 elif image is not None:
                     self.put_data(image_coordinates, image, metadata)
+                    self.post_notification(DataAcquired(image_coordinates))
                     break
 
 

@@ -2,11 +2,11 @@
 This class tests the access of micro-manager properties through the MicroManagerDevice class.
 """
 import pytest
-from pycromanager import Core
+from mmpycorex import Core
 import os
 from pycromanager import start_headless
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
-from pycromanager.execution_engine.device_implementations.micromanager.mm_device_implementations import MicroManagerDevice
+from exengine.kernel.executor import ExecutionEngine
+from backends.micromanager.mm_device_implementations import MicroManagerDevice
 
 
 @pytest.fixture(scope="module")

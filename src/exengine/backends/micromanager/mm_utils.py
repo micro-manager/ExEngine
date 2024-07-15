@@ -1,5 +1,5 @@
 
-from pycromanager import Core
+from mmpycorex import Core
 
 
 def read_mm_config_groups():

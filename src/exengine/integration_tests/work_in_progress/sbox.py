@@ -1,11 +1,11 @@
 from pycromanager import start_headless, stop_headless
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates
-from pycromanager.execution_engine.devices.implementations.micromanager.mm_device_implementations import MicroManagerCamera
+from exengine.kernel.data_coords import DataCoordinates
+from exengine.devices.implementations.micromanager.mm_device_implementations import MicroManagerCamera
 import os
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
-from pycromanager.execution_engine.kernel.acq_event_base import DataHandler
-from pycromanager.execution_engine.storage.NDTiffandRAM import NDRAMStorage
-from pycromanager.execution_engine.implementations.events.event_implementations import StartCapture, ReadoutImages
+from exengine.kernel.executor import ExecutionEngine
+from exengine.kernel.acq_event_base import DataHandler
+from exengine.storage.NDTiffandRAM import NDRAMStorage
+from exengine.implementations.events.event_implementations import StartCapture, ReadoutImages
 
 mm_install_dir = '/Users/henrypinkard/Micro-Manager'
 config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')

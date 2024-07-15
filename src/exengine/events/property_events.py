@@ -1,8 +1,8 @@
 from typing import Optional, Any, Iterable, Tuple, Union, List
 from dataclasses import dataclass
-from pycromanager.execution_engine.kernel.device_types_base import Device
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
-from pycromanager.execution_engine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.device_types_base import Device
+from exengine.kernel.executor import ExecutionEngine
+from exengine.kernel.acq_event_base import AcquisitionEvent
 
 @dataclass
 class SetPropertiesEvent(AcquisitionEvent):
