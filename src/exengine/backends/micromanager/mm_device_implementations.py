@@ -3,8 +3,8 @@ Implementation of Micro-Manager device_implementations.py in terms of the AcqEng
 """
 import threading
 
-from pycromanager.execution_engine.kernel.device_types_base import (Device, Camera, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
-from pycromanager.core import Core
+from exengine.kernel.device_types_base import (Device, Camera, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
+from mmpycorex import Core
 import numpy as np
 import pymmcore
 import time

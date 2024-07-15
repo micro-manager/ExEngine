@@ -2,7 +2,7 @@ import time
 import warnings
 from dataclasses import dataclass
 
-from pycromanager.execution_engine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.acq_event_base import AcquisitionEvent
 from typing import Optional
 
 

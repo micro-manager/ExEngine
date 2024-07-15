@@ -1,15 +1,14 @@
 import time
 
-from pycromanager import start_headless
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates
-from pycromanager.execution_engine.devices.implementations.micromanager.mm_device_implementations import MicroManagerCamera
+from exengine.kernel.data_coords import DataCoordinates
+from exengine.devices.implementations.micromanager.mm_device_implementations import MicroManagerCamera
 import os
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
-from pycromanager.execution_engine.events.implementations.camera_events import (StartContinuousCapture,
+from exengine.kernel.executor import ExecutionEngine
+from exengine.events.implementations.camera_events import (StartContinuousCapture,
                                                                                 ReadoutImages, StopCapture)
-from pycromanager.execution_engine.events.implementations.misc_events import Sleep
-from pycromanager.execution_engine.kernel.data_handler import DataHandler
-from pycromanager.execution_engine.storage.NDTiffandRAM import NDRAMStorage
+from exengine.events.implementations.misc_events import Sleep
+from exengine.kernel.data_handler import DataHandler
+from exengine.storage.NDTiffandRAM import NDRAMStorage
 import itertools
 
 
@@ -27,7 +26,7 @@ camera = MicroManagerCamera()
 executor.set_debug_mode(True)
 
 
-#### Version 1: submit start--readout--stop event_implementations in the same thread and manually stop readout from main thread
+#### Version 1: submit start--readout--stop events in the same thread and manually stop readout from main thread
 print('version 1')
 storage = NDRAMStorage()
 data_handler = DataHandler(storage=storage)
@@ -54,7 +53,7 @@ data_handler.finish()
 
 
 
-### Version 2: submit start--sleep--stop--readout event_implementations all in a single thread
+### Version 2: submit start--sleep--stop--readout events all in a single thread
 # TODO: maybe need some synchronization here becuase the camera could stop before any images are ready..
 print('version 2')
 storage = NDRAMStorage()

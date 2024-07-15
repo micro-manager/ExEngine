@@ -3,12 +3,12 @@ Unit tests for the multi_d_acquisition_events function.
 """
 import pytest
 import numpy as np
-from pycromanager.execution_engine.kernel.device_types_base import Camera, SingleAxisPositioner, DoubleAxisPositioner
-from pycromanager.execution_engine.event_implementations.multi_d_events import multi_d_acquisition_events
-from pycromanager.execution_engine.event_implementations.positioner_events import SetPosition1DEvent, \
+from exengine.kernel.device_types_base import Camera, SingleAxisPositioner, DoubleAxisPositioner
+from exengine.events.multi_d_events import multi_d_acquisition_events
+from exengine.events.positioner_events import SetPosition1DEvent, \
     SetTriggerable1DPositionsEvent
-from pycromanager.execution_engine.event_implementations.property_events import SetTriggerablePropertySequencesEvent
-from pycromanager.execution_engine.event_implementations.camera_events import StartCapture, ReadoutImages
+from exengine.events.property_events import SetTriggerablePropertySequencesEvent
+from exengine.events.camera_events import StartCapture, ReadoutImages
 
 def test_single_z_stack():
     """
