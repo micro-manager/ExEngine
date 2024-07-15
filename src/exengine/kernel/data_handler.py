@@ -7,8 +7,6 @@ from dataclasses import dataclass
 
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.kernel.data_storage_api import DataStorageAPI
-from exengine.kernel.notification_base import Notification
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
