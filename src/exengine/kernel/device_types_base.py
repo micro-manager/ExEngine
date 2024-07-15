@@ -4,6 +4,7 @@ Base classes for device_implementations that can be used by the execution engine
 
 from abc import abstractmethod
 from exengine.kernel.device import Device
+from typing import Tuple
 import numpy as np
 
 
@@ -49,7 +50,7 @@ class DoubleAxisPositioner(Device):
             ...
 
         @abstractmethod
-        def get_position(self) -> (float, float):
+        def get_position(self) -> Tuple[float, float]:
             ...
 
 class TriggerableDoubleAxisPositioner(DoubleAxisPositioner):
@@ -106,7 +107,7 @@ class Camera(Device):
 
     # TODO: perhaps this should be a seperate buffer class
     @abstractmethod
-    def pop_image(self, timeout=None) -> (np.ndarray, dict):
+    def pop_image(self, timeout=None) -> Tuple[np.ndarray, dict]:
         """
         Get the next image and metadata from the camera buffer. If timeout is None, this function will block until
         an image is available. If timeout is a number, this function will block for that many seconds before returning

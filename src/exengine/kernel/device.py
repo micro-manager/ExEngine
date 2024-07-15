@@ -3,7 +3,7 @@ Base class for all device_implementations that integrates with the execution eng
 """
 from abc import ABC, ABCMeta
 from functools import wraps
-from typing import Any, Dict, Callable, List, Union, Iterable
+from typing import Any, Dict, Callable, List, Union, Iterable, Tuple
 from weakref import WeakSet
 from dataclasses import dataclass
 
@@ -219,7 +219,7 @@ class Device(ABC, metaclass=DeviceMetaclass):
         ...
 
     @abstractmethod
-    def get_property_limits(self, property_name: str) -> (float, float):
+    def get_property_limits(self, property_name: str) -> Tuple[float, float]:
         ...
 
     @abstractmethod

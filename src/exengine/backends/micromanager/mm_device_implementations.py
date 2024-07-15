@@ -1,7 +1,6 @@
 """
 Implementation of Micro-Manager device_implementations.py in terms of the AcqEng bottom API
 """
-import threading
 
 from exengine.kernel.device_types_base import (Device, Camera, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
 from mmpycorex import Core
@@ -9,7 +8,7 @@ import numpy as np
 import pymmcore
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Union, Iterable
+from typing import List, Union, Iterable, Tuple
 
 
 
@@ -85,7 +84,7 @@ class MicroManagerDevice(Device):
     def get_triggerable_sequence_max_length(self, property_name: str) -> int:
         return self._core_noexec.get_property_sequence_max_length(self._device_name_noexec, property_name)
 
-    def get_property_limits(self, property_name: str) -> (float, float):
+    def get_property_limits(self, property_name: str) -> Tuple[float, float]:
         if not self._core_noexec.has_property_limits(self._device_name_noexec, property_name):
             return None
         return (self._core_noexec.get_property_lower_limit(self._device_name_noexec, property_name),
@@ -172,7 +171,7 @@ class MicroManagerXYStage(MicroManagerDevice, TriggerableDoubleAxisPositioner):
     def set_position(self, x: float, y: float) -> None:
         self._core_noexec.set_xy_position(self._device_name_noexec, x, y)
 
-    def get_position(self) -> (float, float):
+    def get_position(self) -> Tuple[float, float]:
         return self._core_noexec.get_xy_position(self._device_name_noexec)
 
     def set_position_sequence(self, positions: np.ndarray) -> None:
@@ -268,7 +267,7 @@ class MicroManagerCamera(MicroManagerDevice, Camera):
     def is_stopped(self) -> bool:
         return not self._core_noexec.is_sequence_running(self._device_name_noexec) and not self._snap_active
 
-    def pop_image(self, timeout=None) -> (np.ndarray, dict):
+    def pop_image(self, timeout=None) -> Tuple[np.ndarray, dict]:
         if self._frame_count != 1:
             md = pymmcore.Metadata()
             start_time = time.time()
