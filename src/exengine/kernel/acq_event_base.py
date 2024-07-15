@@ -1,12 +1,11 @@
+import warnings
 from typing import Union, Dict, Optional, Any, TypeVar, Generic, Iterable, ClassVar, Type, List
 import numpy as np
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
 import weakref
-
 from dataclasses import dataclass, field
 
 from exengine.kernel.executor import ExecutionEngine
-
 from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.notification_base import Notification
@@ -16,10 +15,31 @@ if TYPE_CHECKING: # avoid circular imports
     from exengine.kernel.acq_future import AcquisitionFuture
 
 
-TEventReturn = TypeVar('TEventReturn')
+class AcquisitionEventMeta(ABCMeta):
+    """
+    Metaclass for AcquisitionEvent that collects all notification types from base classes and subclasses
+    """
+    def __new__(mcs, name, bases, attrs):
+        # Collect notifications from all base classes
+        all_notifications = set()
+        for base in bases:
+            if hasattr(base, 'notification_types'):
+                all_notifications.update(base.notification_types)
+
+        # Add notifications defined in the current class
+        if 'notification_types' in attrs:
+            all_notifications.update(attrs['notification_types'])
+
+        # Set the combined notifications
+        attrs['notification_types'] = list(all_notifications)
+
+        return super().__new__(mcs, name, bases, attrs)
+
+
+TEventReturn = TypeVar('TEventReturn') # Generic return type for events
 
 @dataclass
-class AcquisitionEvent(ABC, Generic[TEventReturn]):
+class AcquisitionEvent(ABC, Generic[TEventReturn], metaclass=AcquisitionEventMeta):
     _future_weakref: Optional[weakref.ReferenceType['AcquisitionFuture']] = field(default=None, init=False)
     _finished: bool = field(default=False, init=False)
     num_retries_on_exception: int = field(default=0, kw_only=True)
@@ -37,6 +57,10 @@ class AcquisitionEvent(ABC, Generic[TEventReturn]):
         return self._finished
 
     def post_notification(self, notification: Notification):
+        # Check that the notification is of a valid type
+        if notification.__class__ not in self.notification_types:
+            warnings.warn(f"Notification type {notification.__class__} is not in the list of valid notification types"
+                          f"for this event. It should be added in the Event's constructor.")
         if self._future_weakref is None:
             raise Exception("Future not set for event")
         future = self._future_weakref()
@@ -97,6 +121,10 @@ class Stoppable:
     shutdown entails are up to the implementation of the event.
     """
     _stop_requested: bool = False
+    # TODO: change this one the Future stuff is sorted out
+    # notification_types: ClassVar[List[Type['Notification']]] = [
+    #     StopRequestedNotification,
+    # ]
 
     def _stop(self):
         """
