@@ -9,9 +9,6 @@ from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
 from exengine.kernel.acq_event_base import AcquisitionEvent, DataProducing
 from exengine.kernel.acq_future import AcquisitionFuture
 
-
-
-
 class MockDataHandler(DataHandler):
     def __init__(self):
         self.data_storage = {}
