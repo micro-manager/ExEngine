@@ -6,9 +6,9 @@ import pytest
 import numpy as np
 from typing import Dict
 
-from pycromanager.execution_engine.kernel.data_handler import DataHandler
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates
-from pycromanager.execution_engine.kernel.data_storage_api import DataStorageAPI
+from exengine.kernel.data_handler import DataHandler
+from exengine.kernel.data_coords import DataCoordinates
+from exengine.kernel.data_storage_api import DataStorageAPI
 
 class MockDataStorage(DataStorageAPI):
     def __init__(self):
@@ -93,7 +93,7 @@ def test_data_handler_processing_function(data_handler, mock_data_storage):
 
 def test_data_handler_shutdown(data_handler, mock_data_storage):
     """
-    Test that DataHandler signals the storage_implementations to finish correctly.
+    Test that DataHandler signals the storage_backends to finish correctly.
     """
     data_handler.finish()  # Signal to finish
     data_handler.join()

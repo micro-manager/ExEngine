@@ -6,33 +6,33 @@ construction of low-level acquisition events
 import os
 import numpy as np
 import pytest
-from pycromanager import start_headless, stop_headless
-from pycromanager.execution_engine.device_implementations.micromanager.mm_device_implementations import (
+from mmpycorex import create_core_instance, terminate_core_instances
+from backends.micromanager.mm_device_implementations import (
     MicroManagerSingleAxisStage, MicroManagerDevice, MicroManagerXYStage, MicroManagerCamera
 )
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
-from pycromanager.execution_engine.kernel.data_handler import DataHandler
-from pycromanager.execution_engine.storage_implementations.NDTiffandRAM import NDRAMStorage
-from pycromanager.execution_engine.event_implementations.positioner_events import (
+from exengine.kernel.executor import ExecutionEngine
+from exengine.kernel.data_handler import DataHandler
+from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
+from exengine.events.positioner_events import (
     SetPosition1DEvent, SetTriggerable1DPositionsEvent, StopTriggerablePositionSequenceEvent
 )
-from pycromanager.execution_engine.event_implementations.property_events import (
+from exengine.events.property_events import (
     SetTriggerablePropertySequencesEvent, StopTriggerablePropertySequencesEvent
 )
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates
-from pycromanager.execution_engine.event_implementations.camera_events import StartCapture, ReadoutImages
+from exengine.kernel.data_coords import DataCoordinates
+from exengine.events.camera_events import StartCapture, ReadoutImages
 
 
 @pytest.fixture(scope="module")
 def setup_micromanager():
     mm_install_dir = '/Users/henrypinkard/Micro-Manager'
     config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
-    start_headless(mm_install_dir, config_file,
+    create_core_instance(mm_install_dir, config_file,
                    buffer_size_mb=1024, max_memory_mb=1024,
                    python_backend=True,
                    debug=False)
     yield
-    stop_headless()
+    terminate_core_instances()
 
 
 @pytest.fixture(scope="module")

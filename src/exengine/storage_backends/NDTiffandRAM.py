@@ -1,9 +1,9 @@
 """
-Adapters for NDTiff and NDRam storage_implementations classes
+Adapters for NDTiff and NDRam storage_backends classes
 """
 from typing import Union, Dict
-from pycromanager.execution_engine.kernel.data_storage_api import DataStorageAPI
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates
+from exengine.kernel.data_storage_api import DataStorageAPI
+from exengine.kernel.data_coords import DataCoordinates
 from ndstorage import NDRAMDataset, NDTiffDataset
 import numpy as np
 from pydantic.types import JsonValue
@@ -39,7 +39,7 @@ class _NDRAMOrTiffStorage(DataStorageAPI):
             metadata: JsonValue):
         """
         Add data and corresponding metadata to the dataset. Once this method has been called, the data and metadata
-        should be immediately available to be read by get_data and get_metadata. For disk-backed storage_implementations, this may
+        should be immediately available to be read by get_data and get_metadata. For disk-backed storage_backends, this may
         require temporarily caching the data in memory until it can be written to disk.
 
         Parameters
