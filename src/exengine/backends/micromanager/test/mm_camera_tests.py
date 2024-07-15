@@ -2,6 +2,7 @@ import pytest
 import time
 import os
 import itertools
+from mmpycorex import create_core_instance, terminate_core_instances
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
@@ -14,12 +15,12 @@ from exengine.events.camera_events import (StartCapture, ReadoutImages,
 def setup_micromanager():
     mm_install_dir = '/Users/henrypinkard/Micro-Manager'
     config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
-    start_headless(mm_install_dir, config_file,
+    create_core_instance(mm_install_dir, config_file,
                    buffer_size_mb=1024, max_memory_mb=1024,  # set these low for github actions
                    python_backend=True,
                    debug=False)
     yield
-    # No specific teardown needed for start_headless
+    terminate_core_instances()
 
 @pytest.fixture(scope="module")
 def executor():

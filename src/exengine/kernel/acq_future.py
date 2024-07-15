@@ -2,7 +2,7 @@ from typing import Union, Optional, Any, Dict, Tuple, Sequence, Set
 import threading
 import warnings
 from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
-from exengine.kernel.notification_base import Notification, NotificationCategory
+from exengine.kernel.notification_base import Notification
 
 from typing import TYPE_CHECKING
 

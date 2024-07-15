@@ -1,4 +1,4 @@
-from typing import Optional, Any, Iterable, Tuple, Union, List
+from typing import Any, Iterable, Tuple, Union, List
 from dataclasses import dataclass
 from exengine.kernel.device_types_base import Device
 from exengine.kernel.executor import ExecutionEngine
