@@ -1,29 +1,52 @@
-from typing import Union, Dict, Optional, Any, TypeVar, Generic, Iterable
+import warnings
+from typing import Union, Dict, Optional, Any, TypeVar, Generic, Iterable, ClassVar, Type, List
 import numpy as np
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
 import weakref
-
-from pydantic import field_validator
 from dataclasses import dataclass, field
 
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
-from pycromanager.execution_engine.kernel.data_handler import DataHandler
+from exengine.kernel.executor import ExecutionEngine
+from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
+from exengine.kernel.data_handler import DataHandler
+from exengine.kernel.notification_base import Notification
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING: # avoid circular imports
-    from pycromanager.execution_engine.kernel.acq_future import AcquisitionFuture
+    from exengine.kernel.acq_future import AcquisitionFuture
 
 
-T = TypeVar('T')
+class AcquisitionEventMeta(ABCMeta):
+    """
+    Metaclass for AcquisitionEvent that collects all notification types from base classes and subclasses
+    """
+    def __new__(mcs, name, bases, attrs):
+        # Collect notifications from all base classes
+        all_notifications = set()
+        for base in bases:
+            if hasattr(base, 'notification_types'):
+                all_notifications.update(base.notification_types)
+
+        # Add notifications defined in the current class
+        if 'notification_types' in attrs:
+            all_notifications.update(attrs['notification_types'])
+
+        # Set the combined notifications
+        attrs['notification_types'] = list(all_notifications)
+
+        return super().__new__(mcs, name, bases, attrs)
+
+
+TEventReturn = TypeVar('TEventReturn') # Generic return type for events
 
 @dataclass
-class AcquisitionEvent(ABC, Generic[T]):
+class AcquisitionEvent(ABC, Generic[TEventReturn], metaclass=AcquisitionEventMeta):
     _future_weakref: Optional[weakref.ReferenceType['AcquisitionFuture']] = field(default=None, init=False)
     _finished: bool = field(default=False, init=False)
     num_retries_on_exception: int = field(default=0, kw_only=True)
+    notification_types: ClassVar[List[Type[Notification]]] = []
 
     @abstractmethod
-    def execute(self) -> T:
+    def execute(self) -> TEventReturn:
         """
         Execute the event. This event is called by the executor, and should be overriden by subclasses to implement
         the event's functionality
@@ -32,6 +55,18 @@ class AcquisitionEvent(ABC, Generic[T]):
 
     def is_finished(self):
         return self._finished
+
+    def post_notification(self, notification: Notification):
+        # Check that the notification is of a valid type
+        if notification.__class__ not in self.notification_types:
+            warnings.warn(f"Notification type {notification.__class__} is not in the list of valid notification types"
+                          f"for this event. It should be added in the Event's constructor.")
+        if self._future_weakref is None:
+            raise Exception("Future not set for event")
+        future = self._future_weakref()
+        if future is not None:
+            future._notify_of_event_notification(notification)
+        ExecutionEngine.get_instance().publish_notification(notification)
 
     def _set_future(self, future: 'AcquisitionFuture'):
         """
@@ -80,12 +115,16 @@ class Stoppable:
     # TODO: this should be on the future, if youre not going to merge them into one
     #  becuase the event can be reused
     """
-    Acquistition event_implementations that can be stopped should inherit from this class. They are responsible for checking if
+    Acquistition events that can be stopped should inherit from this class. They are responsible for checking if
     is_stop_requested() returns True and stopping their execution if it does. When stopping, an orderly shutdown
     should be performed, unlike when aborting, which should be immediate. The details of what such an orderly
     shutdown entails are up to the implementation of the event.
     """
     _stop_requested: bool = False
+    # TODO: change this one the Future stuff is sorted out
+    # notification_types: ClassVar[List[Type['Notification']]] = [
+    #     StopRequestedNotification,
+    # ]
 
     def _stop(self):
         """
@@ -98,7 +137,7 @@ class Stoppable:
 
 class Abortable:
     """
-    Acquisition event_implementations that can be aborted should inherit from this class. They are responsible for checking if
+    Acquisition events that can be aborted should inherit from this class. They are responsible for checking if
     is_abort_requested() returns True and aborting their execution if it does. When aborting, the event should
     immediately stop its executiond.
     """
@@ -116,7 +155,7 @@ class Abortable:
 @dataclass
 class DataProducing:
     """
-    Acquisition event_implementations that produce data should inherit from this class. They are responsible for putting data
+    Acquisition events that produce data should inherit from this class. They are responsible for putting data
     into the output queue. This class provides a method for putting data into the output queue. It must be passed
     a DataHandler object that will handle the data, and an image_coordinate_iterator object that generates the
     coordinates of each piece of data (i.e. image) that will be produced by the event. For example, {time: 0},

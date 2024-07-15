@@ -2,18 +2,18 @@
 This class tests the access of micro-manager properties through the MicroManagerDevice class.
 """
 import pytest
-from pycromanager import Core
+from mmpycorex import Core
 import os
-from pycromanager import start_headless
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
-from pycromanager.execution_engine.device_implementations.micromanager.mm_device_implementations import MicroManagerDevice
+from mmpycorex import create_core_instance
+from exengine.kernel.executor import ExecutionEngine
+from backends.micromanager.mm_device_implementations import MicroManagerDevice
 
 
 @pytest.fixture(scope="module")
 def setup_micromanager():
     mm_install_dir = '/Users/henrypinkard/Micro-Manager'
     config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
-    start_headless(mm_install_dir, config_file,
+    create_core_instance(mm_install_dir, config_file,
                    buffer_size_mb=1024, max_memory_mb=1024,  # set these low for github actions
                    python_backend=True,
                    debug=False)

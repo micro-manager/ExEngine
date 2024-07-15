@@ -5,9 +5,10 @@ from abc import ABC, ABCMeta
 from functools import wraps
 from typing import Any, Dict, Callable, List, Union, Iterable
 from weakref import WeakSet
+from dataclasses import dataclass
 
-from pycromanager.execution_engine.kernel.acq_event_base import AcquisitionEvent
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
+from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.executor import ExecutionEngine
 import threading
 from abc import abstractmethod
 import sys
@@ -42,7 +43,7 @@ def _thread_start(self, *args, **kwargs):
 # Replace the original start method with the new one
 threading.Thread.start = _thread_start
 
-
+@dataclass
 class MethodCallEvent(AcquisitionEvent):
     method_name: str
     args: tuple
@@ -53,6 +54,7 @@ class MethodCallEvent(AcquisitionEvent):
         method = getattr(self.instance, self.method_name)
         return method(*self.args, **self.kwargs)
 
+@dataclass
 class GetAttrEvent(AcquisitionEvent):
     attr_name: str
     instance: Any
@@ -61,6 +63,7 @@ class GetAttrEvent(AcquisitionEvent):
     def execute(self):
         return self.method(self.instance, self.attr_name)
 
+@dataclass
 class SetAttrEvent(AcquisitionEvent):
     attr_name: str
     value: Any
@@ -69,7 +72,6 @@ class SetAttrEvent(AcquisitionEvent):
 
     def execute(self):
         self.method(self.instance, self.attr_name, self.value)
-
 
 class DeviceMetaclass(ABCMeta):
     """

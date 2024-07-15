@@ -5,9 +5,9 @@ Ensures rerouting of method calls to the ExecutionEngine and proper handling of 
 
 import pytest
 from unittest.mock import MagicMock
-from pycromanager.execution_engine.kernel.acq_event_base import AcquisitionEvent
-from pycromanager.execution_engine.kernel.acq_future import AcquisitionFuture
-from pycromanager.execution_engine.kernel.device import Device
+from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.acq_future import AcquisitionFuture
+from exengine.kernel.device import Device
 import time
 
 
@@ -75,8 +75,8 @@ def test_multiple_method_calls(execution_engine):
 #######################################################
 
 from concurrent.futures import ThreadPoolExecutor
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
-from pycromanager.execution_engine.kernel.device import Device
+from exengine.kernel.executor import ExecutionEngine
+from exengine.kernel.device import Device
 import threading
 
 
@@ -231,8 +231,8 @@ def test_submit_single_event(execution_engine):
 
 def test_submit_multiple_events(execution_engine):
     """
-    Test submitting multiple event_implementations to the ExecutionEngine.
-    Verifies that all event_implementations are executed and return AcquisitionFutures.
+    Test submitting multiple events to the ExecutionEngine.
+    Verifies that all events are executed and return AcquisitionFutures.
     """
     start_event1 = threading.Event()
     finish_event1 = threading.Event()
@@ -262,7 +262,7 @@ def test_submit_multiple_events(execution_engine):
 def test_event_prioritization(execution_engine):
     """
     Test event prioritization in the ExecutionEngine.
-    Verifies that prioritized event_implementations are executed before non-prioritized event_implementations.
+    Verifies that prioritized events are executed before non-prioritized events.
     """
     start_event1 = threading.Event()
     finish_event1 = threading.Event()
@@ -298,7 +298,7 @@ def test_event_prioritization(execution_engine):
 def test_use_free_thread_parallel_execution(execution_engine):
     """
     Test parallel execution using free threads in the ExecutionEngine.
-    Verifies that event_implementations submitted with use_free_thread=True can execute in parallel.
+    Verifies that events submitted with use_free_thread=True can execute in parallel.
     """
     start_event1 = threading.Event()
     finish_event1 = threading.Event()
@@ -311,15 +311,15 @@ def test_use_free_thread_parallel_execution(execution_engine):
     execution_engine.submit(event1)
     execution_engine.submit(event2, use_free_thread=True)
 
-    # Wait for both event_implementations to start executing
+    # Wait for both events to start executing
     assert start_event1.wait(timeout=5)
     assert start_event2.wait(timeout=5)
 
-    # Ensure that both event_implementations are executing simultaneously
+    # Ensure that both events are executing simultaneously
     assert start_event1.is_set()
     assert start_event2.is_set()
 
-    # Signal both event_implementations to finish
+    # Signal both events to finish
     finish_event1.set()
     finish_event2.set()
 
@@ -333,7 +333,7 @@ def test_use_free_thread_parallel_execution(execution_engine):
 def test_single_execution_with_free_thread(execution_engine):
     """
     Test that each event is executed only once, even when using use_free_thread=True.
-    Verifies that event_implementations are not executed multiple times regardless of submission method.
+    Verifies that events are not executed multiple times regardless of submission method.
     """
     start_event1 = threading.Event()
     finish_event1 = threading.Event()
@@ -346,11 +346,11 @@ def test_single_execution_with_free_thread(execution_engine):
     execution_engine.submit(event1)
     execution_engine.submit(event2, use_free_thread=True)
 
-    # Wait for both event_implementations to start executing
+    # Wait for both events to start executing
     assert start_event1.wait(timeout=5)
     assert start_event2.wait(timeout=5)
 
-    # Signal both event_implementations to finish
+    # Signal both events to finish
     finish_event1.set()
     finish_event2.set()
 

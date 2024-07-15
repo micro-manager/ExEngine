@@ -4,10 +4,10 @@ import numpy as np
 from typing import Dict
 import time
 
-from pycromanager.execution_engine.kernel.data_handler import DataHandler
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
-from pycromanager.execution_engine.kernel.acq_event_base import AcquisitionEvent, DataProducing
-from pycromanager.execution_engine.kernel.acq_future import AcquisitionFuture
+from exengine.kernel.data_handler import DataHandler
+from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
+from exengine.kernel.acq_event_base import AcquisitionEvent, DataProducing
+from exengine.kernel.acq_future import AcquisitionFuture
 
 
 
@@ -81,7 +81,7 @@ def test_await_data(acquisition_future):
 
     def wait_and_notify():
         # Delay so that the await_data call is made before the data is added it it gets held in RAM
-        # rather than retrieved from the storage_implementations by the data handler
+        # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
         acquisition_future._notify_data(coords, image, metadata)
     thread = threading.Thread(target=wait_and_notify)
@@ -100,7 +100,7 @@ def test_await_data_processed(acquisition_future):
 
     def wait_and_notify():
         # Delay so that the await_data call is made before the data is added it it gets held in RAM
-        # rather than retrieved from the storage_implementations by the data handler
+        # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
         acquisition_future._notify_data(coords, image, metadata, processed=True)
     thread = threading.Thread(target=wait_and_notify)
@@ -118,7 +118,7 @@ def test_await_data_saved(acquisition_future):
 
     def wait_and_notify():
         # Delay so that the await_data call is made before the data is added it it gets held in RAM
-        # rather than retrieved from the storage_implementations by the data handler
+        # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
         acquisition_future._notify_data(coords, image, metadata, stored=True)
 

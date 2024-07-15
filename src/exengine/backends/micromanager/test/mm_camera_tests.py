@@ -2,14 +2,13 @@ import pytest
 import time
 import os
 import itertools
-from pycromanager import start_headless
-from pycromanager.execution_engine.kernel.executor import ExecutionEngine
-from pycromanager.execution_engine.kernel.data_handler import DataHandler
-from pycromanager.execution_engine.kernel.data_coords import DataCoordinates
-from pycromanager.execution_engine.device_implementations.micromanager.mm_device_implementations import MicroManagerCamera
-from pycromanager.execution_engine.storage_implementations.NDTiffandRAM import NDRAMStorage
-from pycromanager.execution_engine.event_implementations.camera_events import (StartCapture, ReadoutImages,
-                                                                               StartContinuousCapture, StopCapture)
+from exengine.kernel.executor import ExecutionEngine
+from exengine.kernel.data_handler import DataHandler
+from exengine.kernel.data_coords import DataCoordinates
+from backends.micromanager.mm_device_implementations import MicroManagerCamera
+from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
+from exengine.events.camera_events import (StartCapture, ReadoutImages,
+                                           StartContinuousCapture, StopCapture)
 
 @pytest.fixture(scope="module")
 def setup_micromanager():
