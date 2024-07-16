@@ -6,12 +6,15 @@ from collections import deque
 from typing import Deque
 import warnings
 import traceback
-from typing import Union, Iterable, List
+from typing import Union, Iterable, List, Callable, Any
 import queue
 
 from exengine.kernel.notification_base import Notification
 from exengine.kernel.acq_future import AcquisitionFuture
+
 from exengine.kernel.acq_event_base import AcquisitionEvent, Stoppable, Abortable
+
+
 from exengine.kernel.data_handler import DataHandler
 
 
@@ -41,6 +44,9 @@ class ExecutionEngine:
         return cls._instance
 
     def __init__(self, num_threads=1):
+        # delayed import to avoid circular imports
+        from exengine.kernel.acq_event_base import AcquisitionEvent, Stoppable, Abortable
+
         with self._lock:
             if not hasattr(self, '_initialized'):
                 self._thread_managers = []
@@ -48,9 +54,20 @@ class ExecutionEngine:
                     self._start_new_thread()
                 self._initialized = True
 
-    def subscribe_to_notifications(self, subscriber):
+    def subscribe_to_notifications(self, subscriber: Callable[[Notification], Any]) -> None:
         """
-        Subscribe an object to receive notifications
+        Subscribe an object to receive notifications.
+
+        Args:
+            subscriber (Callable[[Notification], Any]): A callable that takes a single
+                Notification object as an argument and returns Any. The return value
+                is typically ignored, hence Any.
+
+        Returns:
+            None
+
+        Raises:
+            TypeError: If the subscriber is not a callable taking exactly one argument.
         """
         with self._notification_lock:
             if len (self._notification_subscribers) == 0:
@@ -66,7 +83,7 @@ class ExecutionEngine:
                 continue
             with self._notification_lock:
                 for subscriber in self._notification_subscribers:
-                    subscriber.notification_published(notification)
+                    subscriber(notification)
 
     def publish_notification(self, notification: Notification):
         """
@@ -75,7 +92,7 @@ class ExecutionEngine:
         self._notification_queue.put(notification)
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> 'ExecutionEngine':
         if cls._instance is None:
             raise RuntimeError("ExecutionEngine has not been initialized")
         return cls._instance
@@ -189,6 +206,11 @@ class ExecutionEngine:
         - Use 'prioritize' for critical system changes that should occur before other queued events.
         - 'use_free_thread' is essential for operations that need to run independently, like cancellation events.
         """
+
+        global AcquisitionEvent
+        if isinstance(AcquisitionEvent, str):
+            # runtime import to avoid circular imports
+            from exengine.kernel.acq_event_base import AcquisitionEvent
         if isinstance(event_or_events, AcquisitionEvent):
             event_or_events = [event_or_events]
 
@@ -313,7 +335,7 @@ class _ExecutionThreadManager:
                 ExecutionEngine.get_instance()._log_exception(exception)
             stopped = isinstance(event, Stoppable) and event.is_stop_requested()
             aborted = isinstance(event, Abortable) and event.is_abort_requested()
-            event._post_execution(return_value=return_val, stopped=stopped, aborted=aborted, exception=exception)
+            event._post_execution(ExecutionEngine.get_instance(), return_value=return_val, stopped=stopped, aborted=aborted, exception=exception)
             with self._addition_condition:
                 self._event_executing = False
             event = None
