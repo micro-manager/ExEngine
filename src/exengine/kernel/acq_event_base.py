@@ -5,17 +5,16 @@ from abc import ABC, abstractmethod, ABCMeta
 import weakref
 from dataclasses import dataclass, field
 
-from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
 from exengine.kernel.data_handler import DataHandler
-from exengine.kernel.notification_base import Notification
+from exengine.kernel.notification_base import Notification, NotificationCategory
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING: # avoid circular imports
     from exengine.kernel.acq_future import AcquisitionFuture
 
 
-class AcquisitionEventMeta(ABCMeta):
+class _AcquisitionEventMeta(ABCMeta):
     """
     Metaclass for AcquisitionEvent that collects all notification types from base classes and subclasses
     """
@@ -35,15 +34,24 @@ class AcquisitionEventMeta(ABCMeta):
 
         return super().__new__(mcs, name, bases, attrs)
 
+@dataclass
+class AcquisitionEventCompletedNotification(Notification[Optional[Exception]]):
+    """
+    Notification that is posted when an AcquisitionEvent completes.
+    If the event raised an exception, it is passed as the payload.
+    """
+    category = NotificationCategory.Event
+    description = "An AcquisitionEvent has completed successfully"
+    payload: Optional[Exception] = None
 
 TEventReturn = TypeVar('TEventReturn') # Generic return type for events
 
 @dataclass
-class AcquisitionEvent(ABC, Generic[TEventReturn], metaclass=AcquisitionEventMeta):
+class AcquisitionEvent(ABC, Generic[TEventReturn], metaclass=_AcquisitionEventMeta):
     _future_weakref: Optional[weakref.ReferenceType['AcquisitionFuture']] = field(default=None, init=False)
     _finished: bool = field(default=False, init=False)
     num_retries_on_exception: int = field(default=0, kw_only=True)
-    notification_types: ClassVar[List[Type[Notification]]] = []
+    notification_types: ClassVar[List[Type[Notification]]] = [AcquisitionEventCompletedNotification]
 
     @abstractmethod
     def execute(self) -> TEventReturn:
@@ -66,7 +74,6 @@ class AcquisitionEvent(ABC, Generic[TEventReturn], metaclass=AcquisitionEventMet
         future = self._future_weakref()
         if future is not None:
             future._notify_of_event_notification(notification)
-        ExecutionEngine.get_instance().publish_notification(notification)
 
     def _set_future(self, future: 'AcquisitionFuture'):
         """
@@ -76,7 +83,7 @@ class AcquisitionEvent(ABC, Generic[TEventReturn], metaclass=AcquisitionEventMet
         # it can be garbage collected. The event should not give access to the future to user code
         self._future_weakref = weakref.ref(future)
 
-    def _post_execution(self, return_value: Optional[Any] = None, exception: Optional[Exception] = None,
+    def _post_execution(self, engine, return_value: Optional[Any] = None, exception: Optional[Exception] = None,
                         stopped=False, aborted=False):
         """
         Method that is called after the event is executed to update acquisition futures about the event's status.
@@ -94,6 +101,7 @@ class AcquisitionEvent(ABC, Generic[TEventReturn], metaclass=AcquisitionEventMet
         if future is not None:
             future._notify_execution_complete(return_value, exception)
         self._finished = True
+        engine.publish_notification(AcquisitionEventCompletedNotification(payload=exception))
 
     def __str__(self):
         """
