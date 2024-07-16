@@ -6,14 +6,13 @@ from exengine.kernel.notification_base import Notification
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING: # avoid circular imports
-    pass
+# if TYPE_CHECKING: # avoid circular imports
 from exengine.kernel.acq_event_base import AcquisitionEvent, DataProducing, Stoppable, Abortable
 
 
 class AcquisitionFuture:
 
-    def __init__(self, event: AcquisitionEvent):
+    def __init__(self, event: 'AcquisitionEvent'):
         self._event = event
         event._set_future(self) # so that the event can notify the future when it is done and when data is acquired
         self._data_handler = event.data_handler if isinstance(event, DataProducing) else None
