@@ -4,17 +4,20 @@ from enum import Enum
 from abc import ABC
 from datetime import datetime
 from dataclasses import field
+import uuid
 
 
 TNotificationPayload = TypeVar('TNotificationPayload')
 
 class NotificationCategory(Enum):
+    Event = 'Update from the execution of an acquisition event'
     Data = 'Data has been acquired by a data producing event'
     Storage = 'Update from a data Storage object'
     Device = 'Update from a Device object'
 
 
-@dataclass
+
+@dataclass()
 class Notification(ABC, Generic[TNotificationPayload]):
     """
     Base class for creating notifications. Notifications are dispatched by the execution engine and related components
@@ -29,7 +32,7 @@ class Notification(ABC, Generic[TNotificationPayload]):
     For example:
 
     @dataclass
-    class DataAcquired(NotificationBase[DataCoordinates]):
+    class DataAcquired(Notification[DataCoordinates]):
         # Define the category and description of the notification shared by all instances of this class
         category = NotificationCategory.Data
         description = "Data has been acquired by a camera or other data-producing device and is now available"
@@ -44,5 +47,14 @@ class Notification(ABC, Generic[TNotificationPayload]):
     category: ClassVar[NotificationCategory]
     description: ClassVar[str]
     payload: Optional[TNotificationPayload] = None
+    _uuid: uuid.UUID = field(default_factory=uuid.uuid4, init=False)
+
+    def __hash__(self):
+        return hash(self._uuid)
+
+    def __eq__(self, other):
+        if not isinstance(other, Notification):
+            return NotImplemented
+        return self._uuid == other._uuid
 
 
