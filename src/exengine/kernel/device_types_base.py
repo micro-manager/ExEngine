@@ -2,10 +2,64 @@
 Base classes for device_implementations that can be used by the execution engine
 """
 
-from abc import abstractmethod
-from exengine.kernel.device import Device
-from typing import Tuple
+from abc import abstractmethod, ABC
+from typing import Tuple, List, Iterable, Union
 import numpy as np
+from kernel.device import DeviceMetaclass
+
+
+
+class Device(ABC, metaclass=DeviceMetaclass):
+    """
+    Required base class for all devices usable with the execution engine
+
+    Device classes should inherit from this class and implement the abstract methods. The DeviceMetaclass will wrap all
+    methods and attributes in the class to make them thread-safe and to optionally record all method calls and
+    attribute accesses.
+
+    Attributes with a trailing _noexec will not be wrapped and will be executed directly on the calling thread. This is
+    useful for attributes that are not hardware related and can bypass the complexity of the executor.
+
+    Device implementations can also implement functionality through properties (i.e. attributes that are actually
+    methods) by defining a getter and setter method for the property.
+    """
+
+    def __init__(self, device_name: str):
+        self._device_name_noexec = device_name
+
+
+    @abstractmethod
+    def get_allowed_property_values(self, property_name: str) -> List[str]:
+        ...
+
+    @abstractmethod
+    def is_property_read_only(self, property_name: str) -> bool:
+        ...
+
+    @abstractmethod
+    def get_property_limits(self, property_name: str) -> Tuple[float, float]:
+        ...
+
+    @abstractmethod
+    def is_property_hardware_triggerable(self, property_name: str) -> bool:
+        ...
+
+    @abstractmethod
+    def get_triggerable_sequence_max_length(self, property_name: str) -> int:
+        ...
+
+    @abstractmethod
+    def load_triggerable_sequence(self, property_name: str, event_sequence: Iterable[Union[str, float, int]]):
+        ...
+
+    @abstractmethod
+    def start_triggerable_sequence(self, property_name: str):
+        ...
+
+    @abstractmethod
+    def stop_triggerable_sequence(self, property_name: str):
+        ...
+
 
 
 # TODO: could replace hard coded classes with

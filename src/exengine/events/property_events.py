@@ -1,6 +1,6 @@
 from typing import Any, Iterable, Tuple, Union, List
 from dataclasses import dataclass
-from exengine.kernel.device_types_base import Device
+from kernel.device_types_base import Device
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.acq_event_base import AcquisitionEvent
 

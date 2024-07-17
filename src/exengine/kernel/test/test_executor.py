@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import MagicMock
 from exengine.kernel.acq_event_base import AcquisitionEvent
 from exengine.kernel.acq_future import AcquisitionFuture
-from exengine.kernel.device import Device
+from kernel.device_types_base import Device
 import time
 
 

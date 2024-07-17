@@ -1,16 +1,15 @@
 """
 Base class for all device_implementations that integrates with the execution engine and enables tokenization of device access.
 """
-from abc import ABC, ABCMeta
+from abc import ABCMeta
 from functools import wraps
-from typing import Any, Dict, Callable, List, Union, Iterable, Tuple
+from typing import Any, Dict, Callable
 from weakref import WeakSet
 from dataclasses import dataclass
 
 from exengine.kernel.acq_event_base import AcquisitionEvent
 from exengine.kernel.executor import ExecutionEngine
 import threading
-from abc import abstractmethod
 import sys
 
 _python_debugger_active = any('pydevd' in sys.modules for frame in sys._current_frames().values())
@@ -191,53 +190,3 @@ class DeviceMetaclass(ABCMeta):
 
         return cls
 
-class Device(ABC, metaclass=DeviceMetaclass):
-    """
-    Required base class for all devices usable with the execution engine
-
-    Device classes should inherit from this class and implement the abstract methods. The DeviceMetaclass will wrap all
-    methods and attributes in the class to make them thread-safe and to optionally record all method calls and
-    attribute accesses.
-
-    Attributes with a trailing _noexec will not be wrapped and will be executed directly on the calling thread. This is
-    useful for attributes that are not hardware related and can bypass the complexity of the executor.
-
-    Device implementations can also implement functionality through properties (i.e. attributes that are actually
-    methods) by defining a getter and setter method for the property.
-    """
-
-    def __init__(self, device_name: str):
-        self._device_name_noexec = device_name
-
-
-    @abstractmethod
-    def get_allowed_property_values(self, property_name: str) -> List[str]:
-        ...
-
-    @abstractmethod
-    def is_property_read_only(self, property_name: str) -> bool:
-        ...
-
-    @abstractmethod
-    def get_property_limits(self, property_name: str) -> Tuple[float, float]:
-        ...
-
-    @abstractmethod
-    def is_property_hardware_triggerable(self, property_name: str) -> bool:
-        ...
-
-    @abstractmethod
-    def get_triggerable_sequence_max_length(self, property_name: str) -> int:
-        ...
-
-    @abstractmethod
-    def load_triggerable_sequence(self, property_name: str, event_sequence: Iterable[Union[str, float, int]]):
-        ...
-
-    @abstractmethod
-    def start_triggerable_sequence(self, property_name: str):
-        ...
-
-    @abstractmethod
-    def stop_triggerable_sequence(self, property_name: str):
-        ...
