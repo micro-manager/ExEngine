@@ -78,7 +78,8 @@ class ANewCameraDevice(Camera):
 Inheriting from the `Device` class or its subclasses provides two main benefits:
 
 1. Compatibility with events for specialized devices in the ExEngine framework, reducing the need to write hardware control code from scratch.
-2. The ability to easy monitor and control hardware access from various parts of a program. By default, inheriting from device reroutes all methods and read/writes to the device through a common thread. This enables code from various parts of a program to interact with a device that may not be thread safe itself, without having to worry about locks and synchronization.
+2. **Thread safety**. All calls to devices that may interact with hardware are automatically rereouted to a common thread. This enables code from various parts of a program to interact with a device that may not be thread safe itself. As a result, there is no need to worry about threading and synchronization concerns in devices, thereby simplifying device control code and the process of adding new devices.
+3. The ability to monitor all inputs and outputs from devices. Since all calls to devices pass through the execution engine, a complete accounting of the commands sent to hardware and the data recieved from it can be generated, without having to write more complex code.
 
 #### Bypassing the Executor
 
