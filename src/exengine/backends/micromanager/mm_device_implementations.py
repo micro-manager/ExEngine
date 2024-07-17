@@ -2,7 +2,8 @@
 Implementation of Micro-Manager device_implementations.py in terms of the AcqEng bottom API
 """
 
-from exengine.kernel.device_types_base import (Device, Camera, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
+from exengine.kernel.device_types_base import (Camera, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
+from kernel.device_types_base import Device
 from mmpycorex import Core
 import numpy as np
 import pymmcore
