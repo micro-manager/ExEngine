@@ -4,7 +4,7 @@ This guide outlines the process of adding support for new devices to the ExEngin
 
 ## 1. Inherit from the Device Base Class
 
-All new devices should inherit from the `Device` base class or one or more of its subclasses (see [exengine.kernel.device_types_base](link-to-device-types-base-documentation)).
+All new devices should inherit from the `Device` base class or one or more of its subclasses (see [exengine.kernel.device_types_base](https://github.com/micro-manager/ExEngine/blob/main/src/exengine/kernel/device_types_base.py))
 
 ```python
 from exengine.kernel.device_types_base import Device
