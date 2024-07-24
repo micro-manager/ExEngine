@@ -7,7 +7,7 @@ from typing import Any, Dict, Callable
 from weakref import WeakSet
 from dataclasses import dataclass
 
-from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.kernel.executor import ExecutionEngine
 import threading
 import sys
@@ -20,6 +20,8 @@ _python_debugger_active = any('pydevd' in sys.modules for frame in sys._current_
 # code running on an executor thread etc. Don't want to auto-reroute these to the executor because this might have
 # unintended consequences. So they need to be tracked and not rerouted
 _within_executor_threads = WeakSet()
+# Keep this list accessible outside of class attributes to avoid infinite recursion
+_no_executor_attrs = ['_name', '_no_executor', '_no_executor_attrs']
 
 def thread_start_hook(thread):
     # keep track of threads that were created by code running on an executor thread so calls on them
@@ -43,7 +45,7 @@ def _thread_start(self, *args, **kwargs):
 threading.Thread.start = _thread_start
 
 @dataclass
-class MethodCallEvent(AcquisitionEvent):
+class MethodCallEvent(ExecutorEvent):
     method_name: str
     args: tuple
     kwargs: Dict[str, Any]
@@ -54,7 +56,7 @@ class MethodCallEvent(AcquisitionEvent):
         return method(*self.args, **self.kwargs)
 
 @dataclass
-class GetAttrEvent(AcquisitionEvent):
+class GetAttrEvent(ExecutorEvent):
     attr_name: str
     instance: Any
     method: Callable
@@ -63,7 +65,7 @@ class GetAttrEvent(AcquisitionEvent):
         return self.method(self.instance, self.attr_name)
 
 @dataclass
-class SetAttrEvent(AcquisitionEvent):
+class SetAttrEvent(ExecutorEvent):
     attr_name: str
     value: Any
     instance: Any
@@ -88,13 +90,31 @@ class DeviceMetaclass(ABCMeta):
 
         @wraps(attr_value)
         def wrapper(self: 'Device', *args: Any, **kwargs: Any) -> Any:
-            if ExecutionEngine.on_any_executor_thread():
+            if attr_name in _no_executor_attrs or self._no_executor:
+                return attr_value(self, *args, **kwargs)
+            if DeviceMetaclass._is_reroute_exempted_thread():
                 return attr_value(self, *args, **kwargs)
             event = MethodCallEvent(method_name=attr_name, args=args, kwargs=kwargs, instance=self)
             return ExecutionEngine.get_instance().submit(event).await_execution()
 
         wrapper._wrapped_for_executor = True
         return wrapper
+
+    @staticmethod
+    def is_debugger_thread():
+        if not _python_debugger_active:
+            return False
+        # This is a heuristic and may need adjustment based on the debugger used.
+        debugger_thread_names = ["pydevd", "Debugger", "GetValueAsyncThreadDebug"]  # Common names for debugger threads
+        current_thread = threading.current_thread()
+        # Check if current thread name contains any known debugger thread names
+        return any(name in current_thread.name or name in str(current_thread.__class__.__name__)
+                   for name in debugger_thread_names)
+
+    @staticmethod
+    def _is_reroute_exempted_thread() -> bool:
+        return (DeviceMetaclass.is_debugger_thread() or ExecutionEngine.on_any_executor_thread() or
+                threading.current_thread() in _within_executor_threads)
 
     @staticmethod
     def find_in_bases(bases, method_name):
@@ -114,15 +134,6 @@ class DeviceMetaclass(ABCMeta):
             else:
                 new_attrs[attr_name] = attr_value
 
-        def is_debugger_thread():
-            if not _python_debugger_active:
-                return False
-            # This is a heuristic and may need adjustment based on the debugger used.
-            debugger_thread_names = ["pydevd", "Debugger", "GetValueAsyncThreadDebug"]  # Common names for debugger threads
-            current_thread = threading.current_thread()
-            # Check if current thread name contains any known debugger thread names
-            return any(name in current_thread.name or name in str(current_thread.__class__.__name__)
-                       for name in debugger_thread_names)
 
         original_setattr = attrs.get('__setattr__') or mcs.find_in_bases(bases, '__setattr__') or object.__setattr__
         def getattribute_with_fallback(self, name):
@@ -139,29 +150,18 @@ class DeviceMetaclass(ABCMeta):
                         raise e
 
         def __getattribute__(self: 'Device', name: str) -> Any:
-            if name.endswith('_noexec'):
-                # special attributes unrelated to hardware that should not be rerouted to the executor
-                return getattribute_with_fallback(self, name)
-            if is_debugger_thread():
-                return getattribute_with_fallback(self, name)
-            if ExecutionEngine.on_any_executor_thread():
-                # already on the executor thread, so proceed as normal
-                return getattribute_with_fallback(self, name)
-            elif threading.current_thread() in _within_executor_threads:
+            if name in _no_executor_attrs or self._no_executor:
+                return object.__getattribute__(self, name)
+            if DeviceMetaclass._is_reroute_exempted_thread():
                 return getattribute_with_fallback(self, name)
             else:
                 event = GetAttrEvent(attr_name=name, instance=self, method=getattribute_with_fallback)
                 return ExecutionEngine.get_instance().submit(event).await_execution()
 
         def __setattr__(self: 'Device', name: str, value: Any) -> None:
-            # These methods don't need to be on the executor because they have nothing to do with hardware
-            if name.endswith('_noexec'):
+            if name in _no_executor_attrs or self._no_executor:
                 original_setattr(self, name, value)
-            if is_debugger_thread():
-                original_setattr(self, name, value)
-            elif ExecutionEngine.on_any_executor_thread():
-                original_setattr(self, name, value)  # we're already on the executor thread, so just set it
-            elif threading.current_thread() in _within_executor_threads:
+            elif DeviceMetaclass._is_reroute_exempted_thread():
                 original_setattr(self, name, value)
             else:
                 event = SetAttrEvent(attr_name=name, value=value, instance=self, method=original_setattr)
@@ -169,6 +169,10 @@ class DeviceMetaclass(ABCMeta):
 
         new_attrs['__getattribute__'] = __getattribute__
         new_attrs['__setattr__'] = __setattr__
+
+        new_attrs['_no_executor'] = True # For startup
+        new_attrs['_no_executor_attrs'] = _no_executor_attrs
+
 
 
         # Create the class
@@ -181,8 +185,8 @@ class DeviceMetaclass(ABCMeta):
         def init_and_register(self, *args, **kwargs):
             original_init(self, *args, **kwargs)
             # Register the instance with the executor
-            if hasattr(self, '_device_name_noexec'):
-                ExecutionEngine.register_device(self._device_name_noexec, self)
+            if hasattr(self, '_name') and hasattr(self, '_no_executor') and not self._no_executor:
+                ExecutionEngine.register_device(self._name, self)
 
         # Use setattr instead of direct assignment
         setattr(cls, '__init__', init_and_register)

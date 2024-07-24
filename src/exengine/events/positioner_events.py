@@ -2,13 +2,13 @@ from typing import List, Union, Tuple, Optional
 import numpy as np
 from dataclasses import dataclass
 
-from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.kernel.device_types_base import (DoubleAxisPositioner, SingleAxisPositioner,
                                                     TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
 
 
 @dataclass
-class SetPosition2DEvent(AcquisitionEvent):
+class SetPosition2DEvent(ExecutorEvent):
     """
     Set the position of a movable device
     """
@@ -19,7 +19,7 @@ class SetPosition2DEvent(AcquisitionEvent):
         self.device.set_position(*self.position)
 
 @dataclass
-class SetTriggerable2DPositionsEvent(AcquisitionEvent):
+class SetTriggerable2DPositionsEvent(ExecutorEvent):
     """
     Set the position of a movable device
     """
@@ -30,7 +30,7 @@ class SetTriggerable2DPositionsEvent(AcquisitionEvent):
         self.device.set_position_sequence(self.positions)
 
 @dataclass
-class SetPosition1DEvent(AcquisitionEvent):
+class SetPosition1DEvent(ExecutorEvent):
     """
     Set the position of a movable device
     """
@@ -41,7 +41,7 @@ class SetPosition1DEvent(AcquisitionEvent):
         self.device.set_position(self.position)
 
 @dataclass
-class SetTriggerable1DPositionsEvent(AcquisitionEvent):
+class SetTriggerable1DPositionsEvent(ExecutorEvent):
     """
     Send a sequence of positions to a 1D positioner that will be triggered by TTL pulses
     """
@@ -52,7 +52,7 @@ class SetTriggerable1DPositionsEvent(AcquisitionEvent):
         self.device.set_position_sequence(self.positions)
 
 @dataclass
-class StopTriggerablePositionSequenceEvent(AcquisitionEvent):
+class StopTriggerablePositionSequenceEvent(ExecutorEvent):
     """
     Stop the current triggerable sequence
     """

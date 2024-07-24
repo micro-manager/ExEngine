@@ -5,10 +5,11 @@ Ensures rerouting of method calls to the ExecutionEngine and proper handling of 
 
 import pytest
 from unittest.mock import MagicMock
-from exengine.kernel.acq_event_base import AcquisitionEvent
-from exengine.kernel.acq_future import AcquisitionFuture
+from exengine.kernel.ex_event_base import ExecutorEvent
+from exengine.kernel.ex_future import ExecutionFuture
 from kernel.device_types_base import Device
 import time
+import numpy as np
 
 
 @pytest.fixture(scope="module")
@@ -21,8 +22,12 @@ def execution_engine():
 #############################################################################################
 # Tests for automated rerouting of method calls to the ExecutionEngine to executor threads
 #############################################################################################
+counter = 1
 class MockDevice(Device):
     def __init__(self):
+        global counter
+        super().__init__(name=f'mock_device_{counter}')
+        counter += 1
         self._test_attribute = None
 
     def test_method(self):
@@ -76,12 +81,15 @@ def test_multiple_method_calls(execution_engine):
 
 from concurrent.futures import ThreadPoolExecutor
 from exengine.kernel.executor import ExecutionEngine
-from exengine.kernel.device import Device
+from exengine.kernel.device_types_base import Device
 import threading
 
 
 class ThreadCreatingDevice(Device):
     def __init__(self):
+        global counter
+        super().__init__(name=f'test{counter}')
+        counter += 1
         self.test_attribute = None
         self._internal_thread_result = None
         self._nested_thread_result = None
@@ -190,7 +198,7 @@ def test_device_threadpool_executor(execution_engine):
 # Tests for other ExecutionEngine functionalities
 #######################################################
 def create_sync_event(start_event, finish_event):
-    event = MagicMock(spec=AcquisitionEvent)
+    event = MagicMock(spec=ExecutorEvent)
     event.num_retries_on_exception = 0
     event.executed = False
     event.executed_time = None
@@ -204,7 +212,6 @@ def create_sync_event(start_event, finish_event):
         event.executed = True
 
     event.execute.side_effect = execute
-    event.is_finished.side_effect = lambda: event.executed
     event._post_execution = MagicMock()
     return event
 
@@ -226,7 +233,7 @@ def test_submit_single_event(execution_engine):
         time.sleep(0.1)
 
     assert event.executed
-    assert isinstance(future, AcquisitionFuture)
+    assert isinstance(future, ExecutionFuture)
 
 
 def test_submit_multiple_events(execution_engine):
@@ -255,8 +262,8 @@ def test_submit_multiple_events(execution_engine):
 
     assert event1.executed
     assert event2.executed
-    assert isinstance(future1, AcquisitionFuture)
-    assert isinstance(future2, AcquisitionFuture)
+    assert isinstance(future1, ExecutionFuture)
+    assert isinstance(future2, ExecutionFuture)
 
 
 def test_event_prioritization(execution_engine):

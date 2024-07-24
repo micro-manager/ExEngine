@@ -5,6 +5,7 @@ from abc import ABC
 from datetime import datetime
 from dataclasses import field
 import uuid
+from exengine.kernel.data_coords import DataCoordinates
 
 
 TNotificationPayload = TypeVar('TNotificationPayload')
@@ -17,7 +18,7 @@ class NotificationCategory(Enum):
 
 
 
-@dataclass()
+@dataclass
 class Notification(ABC, Generic[TNotificationPayload]):
     """
     Base class for creating notifications. Notifications are dispatched by the execution engine and related components
@@ -58,3 +59,21 @@ class Notification(ABC, Generic[TNotificationPayload]):
         return self._uuid == other._uuid
 
 
+@dataclass
+class EventExecutedNotification(Notification[Optional[Exception]]):
+    """
+    Notification that is posted when an ExecutionEvent completes.
+    If the event raised an exception, it is passed as the payload.
+    """
+    category = NotificationCategory.Event
+    description = "An ExecutionEvent has completed successfully"
+    payload: Optional[Exception] = None
+
+@dataclass
+class DataStoredNotification(Notification[DataCoordinates]):
+    """
+    Notification that is posted when data is stored by a Storage object.
+    """
+    category = NotificationCategory.Data
+    description = "Data has been stored in a Storage object"
+    payload: DataCoordinates

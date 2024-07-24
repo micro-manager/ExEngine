@@ -2,10 +2,10 @@ from typing import Any, Iterable, Tuple, Union, List
 from dataclasses import dataclass
 from kernel.device_types_base import Device
 from exengine.kernel.executor import ExecutionEngine
-from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.ex_event_base import ExecutorEvent
 
 @dataclass
-class SetPropertiesEvent(AcquisitionEvent):
+class SetPropertiesEvent(ExecutorEvent):
     """ Set one or more properties (i.e. attributes) of one or more devices """
 
     devices_prop_names_values: Iterable[Tuple[Union[Device, str], str, Any]]
@@ -19,7 +19,7 @@ class SetPropertiesEvent(AcquisitionEvent):
 
 
 @dataclass
-class SetTriggerablePropertySequencesEvent(AcquisitionEvent):
+class SetTriggerablePropertySequencesEvent(ExecutorEvent):
     """
     Set a sequence of must for properties of different devices to be cycled through by hardware triggers
     The properties should be triggerable
@@ -50,7 +50,7 @@ class SetTriggerablePropertySequencesEvent(AcquisitionEvent):
 
 
 @dataclass
-class StopTriggerablePropertySequencesEvent(AcquisitionEvent):
+class StopTriggerablePropertySequencesEvent(ExecutorEvent):
     """
     Stop the current triggerable sequence for one or more properties of different devices
 

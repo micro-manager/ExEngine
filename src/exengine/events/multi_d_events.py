@@ -1,8 +1,8 @@
 from exengine.events.positioner_events import SetPosition2DEvent, SetPosition1DEvent
 from exengine.events.camera_events import StartCapture, ReadoutImages
-from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.events.misc_events import SetTimeEvent
-from exengine.kernel.device_types_base import SingleAxisPositioner, DoubleAxisPositioner, Camera
+from exengine.kernel.device_types_base import SingleAxisPositioner, DoubleAxisPositioner, Detector
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.events.property_events import (SetTriggerablePropertySequencesEvent,
                                              SetPropertiesEvent)
@@ -33,7 +33,7 @@ def multi_d_acquisition_events(
         position_labels: List[str] = None,
         order: str = "tpcz",
         sequence: str = None, # should be "zc", "cz", "tzc", etc
-        camera: Optional[Union[Camera, str]] = None,
+        camera: Optional[Union[Detector, str]] = None,
         xy_device: Optional[SingleAxisPositioner] = None,
         z_device: Optional[SingleAxisPositioner] = None,
 ):
