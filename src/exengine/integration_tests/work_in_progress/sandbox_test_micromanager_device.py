@@ -1,7 +1,7 @@
 from exengine.kernel.data_coords import DataCoordinates
 import os
 from exengine.kernel.executor import ExecutionEngine
-from exengine.kernel.acq_event_base import DataHandler
+from exengine.kernel.ex_event_base import DataHandler
 from exengine.backends.micromanager.mm_device_implementations import MicroManagerCamera
 from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
 from exengine.events.camera_events import StartCapture, ReadoutImages

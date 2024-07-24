@@ -1,7 +1,7 @@
 from mmpycorex import create_core_instance, download_and_install_mm, terminate_core_instances
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_coords import DataCoordinates
-from exengine.kernel.acq_event_base import DataHandler
+from exengine.kernel.ex_event_base import DataHandler
 from exengine.backends.micromanager.mm_device_implementations import MicroManagerCamera, MicroManagerSingleAxisStage
 from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
 from exengine.events.camera_events import StartCapture, ReadoutImages

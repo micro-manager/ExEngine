@@ -6,14 +6,12 @@ from collections import deque
 from typing import Deque
 import warnings
 import traceback
-from typing import Union, Iterable, List, Callable, Any
+from typing import Union, Iterable, List, Callable, Any, Type
 import queue
 
-from exengine.kernel.notification_base import Notification
-from exengine.kernel.acq_future import AcquisitionFuture
-
-from exengine.kernel.acq_event_base import AcquisitionEvent, Stoppable, Abortable
-
+from exengine.kernel.notification_base import Notification, NotificationCategory
+from exengine.kernel.ex_event_base import ExecutorEvent
+from exengine.kernel.ex_future import ExecutionFuture
 
 from exengine.kernel.data_handler import DataHandler
 
@@ -29,13 +27,6 @@ class ExecutionEngine:
     _instance = None
     _lock = threading.Lock()
     _debug = False
-    _exceptions = queue.Queue()
-    _devices = {}
-    _notification_queue = queue.Queue()
-    _notification_subscribers = []
-    _notification_lock = threading.Lock()
-    _notification_thread = None
-    _shutdown_event = threading.Event()
 
     def __new__(cls, *args, **kwargs):
         with cls._lock:
@@ -45,7 +36,15 @@ class ExecutionEngine:
 
     def __init__(self, num_threads=1):
         # delayed import to avoid circular imports
-        from exengine.kernel.acq_event_base import AcquisitionEvent, Stoppable, Abortable
+        from exengine.kernel.ex_event_base import ExecutorEvent, Stoppable, Abortable
+        self._exceptions = queue.Queue()
+        self._devices = {}
+        self._notification_queue = queue.Queue()
+        self._notification_subscribers: List[Callable[[Notification], None]] = []
+        self._notification_subscriber_filters: List[Union[NotificationCategory, Type]] = []
+        self._notification_lock = threading.Lock()
+        self._notification_thread = None
+        self._shutdown_event = threading.Event()
 
         with self._lock:
             if not hasattr(self, '_initialized'):
@@ -54,14 +53,17 @@ class ExecutionEngine:
                     self._start_new_thread()
                 self._initialized = True
 
-    def subscribe_to_notifications(self, subscriber: Callable[[Notification], Any]) -> None:
+    def subscribe_to_notifications(self, subscriber: Callable[[Notification], None],
+                                   notification_type: Union[NotificationCategory, Type] = None
+                                   ) -> None:
         """
         Subscribe an object to receive notifications.
 
         Args:
             subscriber (Callable[[Notification], Any]): A callable that takes a single
-                Notification object as an argument and returns Any. The return value
-                is typically ignored, hence Any.
+                Notification object as an argument.
+            notification_type (Union[NotificationCategory, Type], optional): The type of notification to subscribe to.
+              this can either be a NotificationCategory or a specific subclass of Notification.
 
         Returns:
             None
@@ -70,19 +72,41 @@ class ExecutionEngine:
             TypeError: If the subscriber is not a callable taking exactly one argument.
         """
         with self._notification_lock:
-            if len (self._notification_subscribers) == 0:
+            if len(self._notification_subscribers) == 0:
                 self._notification_thread = threading.Thread(target=self._notification_thread_run)
                 self._notification_thread.start()
             self._notification_subscribers.append(subscriber)
+            self._notification_subscriber_filters.append(notification_type)
+
+    def unsubscribe_from_notifications(self, subscriber: Callable[[Notification], None]) -> None:
+        """
+        Unsubscribe an object from receiving notifications.
+
+        Args:
+            subscriber (Callable[[Notification], Any]): The callable that was previously subscribed to notifications.
+
+        Returns:
+            None
+        """
+        with self._notification_lock:
+            index = self._notification_subscribers.index(subscriber)
+            self._notification_subscribers.pop(index)
+            self._notification_subscriber_filters.pop(index)
 
     def _notification_thread_run(self):
-        while not self._shutdown_event.is_set():
+        while not self._shutdown_event.is_set() or self._notification_queue.qsize() > 0:
             try:
                 notification = self._notification_queue.get(timeout=1)
+                print('notifyi subscriber thread  ' + str(notification))
             except queue.Empty:
                 continue
             with self._notification_lock:
-                for subscriber in self._notification_subscribers:
+                for subscriber, filter in zip(self._notification_subscribers, self._notification_subscriber_filters):
+                    if filter is not None and isinstance(filter, type) and not isinstance(notification, filter):
+                        continue  # not interested in this type
+                    if filter is not None and isinstance(filter, NotificationCategory) and notification.category != filter:
+                        continue
+                    print('notified subscriber thread')
                     subscriber(notification)
 
     def publish_notification(self, notification: Notification):
@@ -158,9 +182,9 @@ class ExecutionEngine:
             else:
                 raise MultipleExceptions(exceptions)
 
-    def submit(self, event_or_events: Union[AcquisitionEvent, Iterable[AcquisitionEvent]],
+    def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent]],
                transpile: bool = True, prioritize: bool = False, use_free_thread: bool = False,
-               data_handler: DataHandler = None) -> Union[AcquisitionFuture, Iterable[AcquisitionFuture]]:
+               data_handler: DataHandler = None) -> Union[ExecutionFuture, Iterable[ExecutionFuture]]:
         """
         Submit one or more acquisition events for execution.
 
@@ -174,8 +198,8 @@ class ExecutionEngine:
 
         Parameters:
         ----------
-        event_or_events : Union[AcquisitionEvent, Iterable[AcquisitionEvent]]
-            A single AcquisitionEvent or an iterable of AcquisitionEvents to be submitted.
+        event_or_events : Union[ExecutorEvent, Iterable[ExecutorEvent]]
+            A single ExecutorEvent or an iterable of ExecutorEvents to be submitted.
 
         transpile : bool, optional (default=True)
             If True and multiple events are submitted, attempt to optimize them for better performance.
@@ -191,7 +215,7 @@ class ExecutionEngine:
             If False, execute on the primary thread.
 
         data_handler : DataHandler, optional (default=None)
-            Object to handle data and metadata produced by DataProducingAcquisitionEvents.
+            Object to handle data and metadata produced by DataProducingExecutorEvents.
 
         Returns:
         -------
@@ -207,11 +231,11 @@ class ExecutionEngine:
         - 'use_free_thread' is essential for operations that need to run independently, like cancellation events.
         """
 
-        global AcquisitionEvent
-        if isinstance(AcquisitionEvent, str):
+        global ExecutorEvent
+        if isinstance(ExecutorEvent, str):
             # runtime import to avoid circular imports
-            from exengine.kernel.acq_event_base import AcquisitionEvent
-        if isinstance(event_or_events, AcquisitionEvent):
+            from exengine.kernel.ex_event_base import ExecutorEvent
+        if isinstance(event_or_events, ExecutorEvent):
             event_or_events = [event_or_events]
 
         if transpile:
@@ -224,11 +248,11 @@ class ExecutionEngine:
             return futures[0]
         return futures
 
-    def _submit_single_event(self, event: AcquisitionEvent, use_free_thread: bool = False, prioritize: bool = False):
+    def _submit_single_event(self, event: ExecutorEvent, use_free_thread: bool = False, prioritize: bool = False):
         """
         Submit a single event for execution
         """
-        future = AcquisitionFuture(event=event)
+        future = event._create_future()
         if use_free_thread:
             need_new_thread = True
             for thread in self._thread_managers:
@@ -257,6 +281,11 @@ class ExecutionEngine:
         for thread in self._thread_managers:
             thread.join()
 
+        # Make sure the notification thread is stopped
+        self._notification_thread.join()
+        # delete singleton instance
+        ExecutionEngine._instance = None
+
 
 class _ExecutionThreadManager:
     """
@@ -268,7 +297,7 @@ class _ExecutionThreadManager:
     or events in its queue with the is_free method.
 
     """
-    _deque: Deque[AcquisitionEvent]
+    _deque: Deque[ExecutorEvent]
     thread: threading.Thread
 
     def __init__(self, name='UnnamedExectorThread'):
@@ -295,7 +324,7 @@ class _ExecutionThreadManager:
                 return
             # Event retrieval loop
             while event is None:
-                with self._addition_condition:
+                with (self._addition_condition):
                     if not self._deque:
                         # wait until something is in the queue
                         self._addition_condition.wait()
@@ -304,24 +333,26 @@ class _ExecutionThreadManager:
                     if self._shutdown_event.is_set() and not self._deque:
                         # awoken by a shutdown event and the queue is empty
                         return
-                    event = self._deque.popleft()
-                    if not hasattr(event, 'num_retries_on_exception'):
+                    event: ExecutorEvent = self._deque.popleft()
+                    if not hasattr(event, '_num_retries_on_exception'):
                         warnings.warn("Event does not have num_retries_on_exception attribute, setting to 0")
-                        event.num_retries_on_exception = 0
-                    num_retries = event.num_retries_on_exception
+                        event._num_retries_on_exception = 0
+                    num_retries = event._num_retries_on_exception
                     self._event_executing = True
 
             # Event execution loop
             exception = None
             return_val = None
-            for attempt_number in range(event.num_retries_on_exception + 1):
+            for attempt_number in range(event._num_retries_on_exception + 1):
                 if self._terminate_event.is_set():
                     return  # Executor has been terminated
                 try:
                     if ExecutionEngine._debug:
                         print("Executing event", event.__class__.__name__, threading.current_thread())
-                    if event.is_finished():
+                    # TODO: you should be able to re-run events now
+                    if event.finished:
                         raise RuntimeError("Event ", event, " was already executed")
+                    event._pre_execution(ExecutionEngine.get_instance())
                     return_val = event.execute()
                     if ExecutionEngine._debug:
                         print("Finished executing", event.__class__.__name__, threading.current_thread())
@@ -333,9 +364,7 @@ class _ExecutionThreadManager:
                     exception = e
             if exception is not None:
                 ExecutionEngine.get_instance()._log_exception(exception)
-            stopped = isinstance(event, Stoppable) and event.is_stop_requested()
-            aborted = isinstance(event, Abortable) and event.is_abort_requested()
-            event._post_execution(ExecutionEngine.get_instance(), return_value=return_val, stopped=stopped, aborted=aborted, exception=exception)
+            event._post_execution(return_value=return_val, exception=exception)
             with self._addition_condition:
                 self._event_executing = False
             event = None

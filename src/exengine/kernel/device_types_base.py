@@ -3,7 +3,7 @@ Base classes for device_implementations that can be used by the execution engine
 """
 
 from abc import abstractmethod, ABC
-from typing import Tuple, List, Iterable, Union
+from typing import Tuple, List, Iterable, Union, Optional, Sequence
 import numpy as np
 from kernel.device import DeviceMetaclass
 
@@ -24,42 +24,44 @@ class Device(ABC, metaclass=DeviceMetaclass):
     methods) by defining a getter and setter method for the property.
     """
 
-    def __init__(self, device_name: str):
-        self._device_name_noexec = device_name
+    def __init__(self, name: str, no_executor: bool = False, no_executor_attrs: Sequence[str] = ('_name', )):
+        """
+        Create a new device
+
+        :param name: The name of the device
+        :param no_executor: If True, all methods and attributes will be executed directly on the calling thread instead
+        of being rerouted to the executor
+        :param no_executor_attrs: If no_executor is False, this is a list of attribute names that will be executed
+        directly on the calling thread
+        """
+        self._no_executor_attrs.extend(no_executor_attrs)
+        self._no_executor = no_executor
+        self._name = name
 
 
-    @abstractmethod
-    def get_allowed_property_values(self, property_name: str) -> List[str]:
-        ...
+    def get_allowed_property_values(self, property_name: str) -> Optional[List[str]]:
+        return None  # By default, any value is allowed
 
-    @abstractmethod
     def is_property_read_only(self, property_name: str) -> bool:
-        ...
+        return False  # By default, properties are writable
 
-    @abstractmethod
-    def get_property_limits(self, property_name: str) -> Tuple[float, float]:
-        ...
+    def get_property_limits(self, property_name: str) -> Tuple[Optional[float], Optional[float]]:
+        return (None, None)  # By default, no limits
 
-    @abstractmethod
     def is_property_hardware_triggerable(self, property_name: str) -> bool:
-        ...
+        return False  # By default, properties are not hardware triggerable
 
-    @abstractmethod
     def get_triggerable_sequence_max_length(self, property_name: str) -> int:
-        ...
+        raise NotImplementedError(f"get_triggerable_sequence_max_length is not implemented for {property_name}")
 
-    @abstractmethod
     def load_triggerable_sequence(self, property_name: str, event_sequence: Iterable[Union[str, float, int]]):
-        ...
+        raise NotImplementedError(f"load_triggerable_sequence is not implemented for {property_name}")
 
-    @abstractmethod
     def start_triggerable_sequence(self, property_name: str):
-        ...
+        raise NotImplementedError(f"start_triggerable_sequence is not implemented for {property_name}")
 
-    @abstractmethod
     def stop_triggerable_sequence(self, property_name: str):
-        ...
-
+        raise NotImplementedError(f"stop_triggerable_sequence is not implemented for {property_name}")
 
 
 # TODO: could replace hard coded classes with
@@ -122,7 +124,7 @@ class TriggerableDoubleAxisPositioner(DoubleAxisPositioner):
             ...
 
 
-class Camera(Device):
+class Detector(Device):
     """
     Generic class for a camera and the buffer where it stores data
     """

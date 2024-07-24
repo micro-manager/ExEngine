@@ -6,14 +6,14 @@ import time
 
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
-from exengine.kernel.acq_event_base import AcquisitionEvent, DataProducing
-from exengine.kernel.acq_future import AcquisitionFuture
+from exengine.kernel.ex_event_base import ExecutorEvent, DataProducing
+from exengine.kernel.ex_future import ExecutionFuture
 
 class MockDataHandler(DataHandler):
     def __init__(self):
         self.data_storage = {}
 
-    def put(self, coords: DataCoordinates, image: np.ndarray, metadata: Dict, future: AcquisitionFuture = None):
+    def put(self, coords: DataCoordinates, image: np.ndarray, metadata: Dict, future: ExecutionFuture = None):
         self.data_storage[coords] = (image, metadata)
 
     def get(self, coords: DataCoordinates, return_data=True, return_metadata=True, processed=False):
@@ -23,10 +23,10 @@ class MockDataHandler(DataHandler):
         return (data if return_data else None, metadata if return_metadata else None)
 
 
-class MockDataProducing(AcquisitionEvent, DataProducing):
+class MockDataProducing(ExecutorEvent, DataProducing):
 
     def __init__(self):
-        super().__init__(image_coordinate_iterator=DataCoordinatesIterator.create(
+        super().__init__(data_coordinate_iterator=DataCoordinatesIterator.create(
             [{"time": 0}, {"time": 1}, {"time": 2}]))
         self.data_handler = MockDataHandler()
 
@@ -40,25 +40,25 @@ def mock_event():
 
 
 @pytest.fixture
-def acquisition_future(mock_event, mock_data_handler):
-    return AcquisitionFuture(event=mock_event)
+def execution_future(mock_event, mock_data_handler):
+    return ExecutionFuture(event=mock_event)
 
 
-def test_notify_execution_complete(acquisition_future):
+def test_notify_execution_complete(execution_future):
     """
     Test that the acquisition future is notified when the event is complete
     """
     def complete_event():
         time.sleep(0.1)
-        acquisition_future._notify_execution_complete(None)
+        execution_future._notify_execution_complete(None)
 
     thread = threading.Thread(target=complete_event)
     thread.start()
-    acquisition_future.await_execution()
-    assert acquisition_future._event_complete
+    execution_future.await_execution()
+    assert execution_future._event_complete
 
 
-def test_notify_data(acquisition_future):
+def test_notify_data(execution_future):
     """
     Test that the acquisition future is notified when data is added
     """
@@ -66,11 +66,11 @@ def test_notify_data(acquisition_future):
     image = np.array([[1, 2], [3, 4]], dtype=np.uint16)
     metadata = {"some": "metadata"}
 
-    acquisition_future._notify_data(coords, image, metadata)
-    assert coords in acquisition_future._acquired_data_coordinates
+    execution_future._notify_data(coords, image, metadata)
+    assert coords in execution_future._acquired_data_coordinates
 
 
-def test_await_data(acquisition_future):
+def test_await_data(execution_future):
     """ Test that the acquisition future can wait for data to be added """
     coords = DataCoordinates({"time": 1})
     image = np.array([[1, 2], [3, 4]], dtype=np.uint16)
@@ -80,16 +80,16 @@ def test_await_data(acquisition_future):
         # Delay so that the await_data call is made before the data is added it it gets held in RAM
         # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
-        acquisition_future._notify_data(coords, image, metadata)
+        execution_future._notify_data(coords, image, metadata)
     thread = threading.Thread(target=wait_and_notify)
     thread.start()
 
-    data, meta = acquisition_future.await_data(coords, return_data=True, return_metadata=True)
+    data, meta = execution_future.await_data(coords, return_data=True, return_metadata=True)
     assert np.array_equal(data, image)
     assert meta == metadata
 
 
-def test_await_data_processed(acquisition_future):
+def test_await_data_processed(execution_future):
     """ Test that the acquisition future can wait for processed data to be added """
     coords = DataCoordinates(time=1)
     image = np.array([[1, 2], [3, 4]], dtype=np.uint16)
@@ -99,16 +99,16 @@ def test_await_data_processed(acquisition_future):
         # Delay so that the await_data call is made before the data is added it it gets held in RAM
         # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
-        acquisition_future._notify_data(coords, image, metadata, processed=True)
+        execution_future._notify_data(coords, image, metadata, processed=True)
     thread = threading.Thread(target=wait_and_notify)
     thread.start()
 
-    data, meta = acquisition_future.await_data(coords, return_data=True, return_metadata=True, processed=True)
+    data, meta = execution_future.await_data(coords, return_data=True, return_metadata=True, processed=True)
     assert np.array_equal(data, image)
     assert meta == metadata
 
 
-def test_await_data_saved(acquisition_future):
+def test_await_data_saved(execution_future):
     coords = DataCoordinates(time=1)
     image = np.array([[1, 2], [3, 4]], dtype=np.uint16)
     metadata = {"some": "metadata"}
@@ -117,26 +117,26 @@ def test_await_data_saved(acquisition_future):
         # Delay so that the await_data call is made before the data is added it it gets held in RAM
         # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
-        acquisition_future._notify_data(coords, image, metadata, stored=True)
+        execution_future._notify_data(coords, image, metadata, stored=True)
 
     thread = threading.Thread(target=wait_and_notify)
     thread.start()
 
-    data, meta = acquisition_future.await_data(coords, return_data=True, return_metadata=True, stored=True)
+    data, meta = execution_future.await_data(coords, return_data=True, return_metadata=True, stored=True)
     assert np.array_equal(data, image)
     assert meta == metadata
 
 
-def test_check_if_coordinates_possible(acquisition_future):
+def test_check_if_coordinates_possible(execution_future):
     coords = DataCoordinates({"time": 1})
 
     try:
-        acquisition_future._check_if_coordinates_possible(coords)
+        execution_future._check_if_coordinates_possible(coords)
     except ValueError:
         pytest.fail("Unexpected ValueError raised")
 
-def test_check_if_coordinates_not_possible(acquisition_future):
+def test_check_if_coordinates_not_possible(execution_future):
     coords = DataCoordinates(time=1, channel='not_possible')
 
     with pytest.raises(ValueError):
-        acquisition_future._check_if_coordinates_possible(coords)
+        execution_future._check_if_coordinates_possible(coords)

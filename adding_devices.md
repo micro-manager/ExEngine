@@ -56,17 +56,19 @@ There are specialized device types that standardize functionalities through meth
 Specilzed device types implement functionality through abstract methods that must be implemented by subclasses. For example:
 
 ```python
-from exengine.kernel.device_types_base import Camera
+from exengine.kernel.device_types_base import Detector
+
 
 # TODO: may change this API in the future
-class ANewCameraDevice(Camera):
+class ANewCameraDevice(Detector):
     def set_exposure(self, exposure: float) -> None:
-        # Implementation here
+
+    # Implementation here
 
     def get_exposure(self) -> float:
-        # Implementation here
+# Implementation here
 
-    # Implement other camera-specific methods...
+# Implement other camera-specific methods...
 ```
 
 
@@ -82,12 +84,36 @@ Inheriting from the `Device` class or its subclasses provides two main benefits:
 
 #### Bypassing the Executor
 
-In some cases, you may have an attribute that doesn't interact with hardware and doesn't need to go through the executor. You can bypass the executor by appending `_noexec` to the attribute name. This will cause the attribute to be executed directly on the calling thread.
+In some cases, you may have attributes or methods that don't interact with hardware and don't need to go through the executor. You can bypass the executor for specific attributes or for the entire device:
+
+1. Specify attributes to bypass in the Device constructor:
 
 ```python
 class MyNewDevice(Device):
     def __init__(self, name):
-        super().__init__(name)
+        super().__init__(name, no_executor_attrs=('_some_internal_variable', 'some_method'))
         # This will be executed on the calling thread like a normal attribute
-        self._some_internal_variable_noexec = 0
+        self._some_internal_variable = 0
+
+    def some_method(self):
+        # This method will be executed directly on the calling thread
+        pass
 ```
+
+2. Bypass the executor for all attributes and methods:
+
+```python
+class MyNewDevice(Device):
+    def __init__(self, name):
+        super().__init__(name, no_executor=True)
+        # All attributes and methods in this class will bypass the executor
+        self._some_internal_variable = 0
+
+    def some_method(self):
+        # This method will be executed directly on the calling thread
+        pass
+```
+
+Using the first approach allows you to selectively bypass the executor for specific attributes or methods, while the second approach bypasses the executor for the entire device.
+Note that when using no_executor_attrs, you need to specify the names of the attributes or methods as strings in a sequence (e.g., tuple or list) passed to the no_executor_attrs parameter in the super().__init__() call.
+These approaches provide flexibility in controlling which parts of your device interact with the executor, allowing for optimization where direct access is safe and beneficial.

@@ -1,21 +1,25 @@
-from typing import Union, Optional, Any, Dict, Tuple, Sequence, Set
+from typing import Union, Optional, Any, Dict, Tuple, Sequence, Set, TypeVar, Type, Iterable
 import threading
 import warnings
 from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
 from exengine.kernel.notification_base import Notification
+import numpy as np
+from dataclasses import field
+
 
 from typing import TYPE_CHECKING
 
-# if TYPE_CHECKING: # avoid circular imports
-from exengine.kernel.acq_event_base import AcquisitionEvent, DataProducing, Stoppable, Abortable
+if TYPE_CHECKING: # avoid circular imports
+    from exengine.kernel.ex_event_base import ExecutorEvent, DataProducing, Stoppable, Abortable
 
 
-class AcquisitionFuture:
+TEventFutureCapabilities = TypeVar('TEventFutureCapabilities')  # Generic for methods that get added to the future
 
-    def __init__(self, event: 'AcquisitionEvent'):
-        self._event = event
+class ExecutionFuture:
+
+    def __init__(self, event: 'ExecutorEvent'):
+        self.event = event
         event._set_future(self) # so that the event can notify the future when it is done and when data is acquired
-        self._data_handler = event.data_handler if isinstance(event, DataProducing) else None
         self._event_complete_condition = threading.Condition()
         self._data_notification_condition = threading.Condition()
         self._generic_notification_condition = threading.Condition()
@@ -24,25 +28,14 @@ class AcquisitionFuture:
         self._processed_data_coordinates: Set[DataCoordinates] = set()
         self._stored_data_coordinates: Set[DataCoordinates] = set()
         self._received_notifications = set()
+
         self._awaited_acquired_data: Dict[DataCoordinates, Tuple[Any, Any]] = {}
         self._awaited_processed_data: Dict[DataCoordinates, Tuple[Any, Any]] = {}
         self._awaited_stored_data: Dict[DataCoordinates, Tuple[Any, Any]] = {}
+
         self._return_value = None
         self._exception = None
 
-        # remove unsupported methods
-        if not isinstance(self._event, DataProducing):
-            def raise_not_implemented(*args, **kwargs):
-                raise NotImplementedError("This event does not DataProducing")
-            self.await_data = raise_not_implemented
-        if not isinstance(self._event, Stoppable):
-            def raise_not_implemented(*args, **kwargs):
-                raise NotImplementedError("This event is not Stoppable")
-            self.stop = raise_not_implemented
-        if not isinstance(self._event, Abortable):
-            def raise_not_implemented(*args, **kwargs):
-                raise NotImplementedError("This event is not Abortable")
-            self.abort = raise_not_implemented
 
     def await_execution(self) -> Any:
         """
@@ -56,32 +49,63 @@ class AcquisitionFuture:
             raise self._exception
         return self._return_value
 
+    def is_execution_complete(self) -> bool:
+        """
+        Check if the event has completed
+        """
+        with self._event_complete_condition:
+            return self._event_complete
+
+    def _notify_execution_complete(self, return_value: Any = None, exception: Exception = None):
+        """
+        Notify the future that the event has completed
+        """
+        with self._event_complete_condition:
+            self._return_value = return_value
+            self._exception = exception
+            self._event_complete = True
+            self._event_complete_condition.notify_all()
+
+
+    def _notify_of_event_notification(self, notification: Notification):
+        """
+        Called by the event to note that a notification has been posted
+        """
+        with self._generic_notification_condition:
+            self._received_notifications.add(notification)
+            self._generic_notification_condition.notify_all()
+
+    def await_notification(self, notification: Notification):
+        """
+        Block until a specific notification is received. If this notification was already received, this function will
+        return immediately.
+        """
+        with self._generic_notification_condition:
+            while True:
+                if notification in self._received_notifications:
+                    return
+                self._generic_notification_condition.wait()
+
+    ####################################################################################################################
+    # Special methods for Stoppable AcquisitionEvents
+    ####################################################################################################################
     def stop(self, await_completion: bool = False):
-        """
-        (Only for AcquistionEvents that also inherit from Stoppable)
-        Request the acquisition event to stop its execution. Stop means the event should initiate a graceful shutdown.
-        The details of what this means are up to the implementation of the event.
-
-        Args:
-            await_completion: Whether to block until the event has completed its execution
-        """
-        self._event._stop()
+        self.event._request_stop()
         if await_completion:
             self.await_execution()
 
+    ####################################################################################################################
+    # Special methods for Abortable AcquisitionEvents
+    ####################################################################################################################
     def abort(self, await_completion: bool = False):
-        """
-        (Only for AcquistionEvents that also inherit from Abortable)
-        Request the acquisition event to abort its execution. Abort means the event should immediately stop its execution
-        The details of what this means are up to the implementation of the event.
-
-        Args:
-            await_completion: Whether to block until the event has completed its execution
-        """
-        self._event._abort()
+        self.event._request_abort()
         if await_completion:
             self.await_execution()
 
+
+    ####################################################################################################################
+    # Special methods for DataProducing AcquisitionEvents
+    ####################################################################################################################
 
     def await_data(self, coordinates: Optional[Union[DataCoordinates, Dict[str, Union[int, str]],
                                                DataCoordinatesIterator, Sequence[DataCoordinates],
@@ -108,7 +132,7 @@ class AcquisitionFuture:
         """
 
         # Check if this event produces data
-        if not isinstance(self._event, DataProducing):
+        if not isinstance(self.event, DataProducing):
             raise ValueError("This event does not produce data")
 
         coordinates_iterator = DataCoordinatesIterator.create(coordinates)
@@ -127,27 +151,27 @@ class AcquisitionFuture:
                 if not processed and not stored:
                     # make sure this is a valid thing to wait for. This can only be done before processing and
                     #  storage_backends, because processors and data storage_backends classes may optionally modify the data
-                    self._check_if_coordinates_possible(coordinates)
+                    self.event._check_if_coordinates_possible(coordinates)
                     if data_coordinates not in self._acquired_data_coordinates:
                         # register that we're awaiting this data, so that if it arrives on the other thread while other
                         # images are being read from disk, it will be hung onto in memory, thereby avoid unnecessary reads
-                        self._awaited_acquired_data[coordinates] = (return_data, return_metadata)
+                        self.event._awaited_acquired_data[coordinates] = (return_data, return_metadata)
                     else:
                         to_read.add(data_coordinates)
                 elif processed and not stored:
                     if data_coordinates not in self._processed_data_coordinates:
-                        self._awaited_processed_data[coordinates] = (return_data, return_metadata)
+                        self.event._awaited_processed_data[coordinates] = (return_data, return_metadata)
                     else:
                         to_read.add(data_coordinates)
                 else: # data stored
                     if data_coordinates not in self._stored_data_coordinates:
-                        self._awaited_stored_data[coordinates] = (return_data, return_metadata)
+                        self.event._awaited_stored_data[coordinates] = (return_data, return_metadata)
                     else:
                         to_read.add(data_coordinates)
 
         # retrieve any data that has already passed through the pipeline from the data storage_backends, via the data handler
         for data_coordinates in to_read:
-            data, metadata = self._data_handler.get(data_coordinates, return_data, return_metadata)
+            data, metadata = self.event._data_handler.get(data_coordinates, return_data, return_metadata)
             # save memory for a potential big retrieval
             result[data_coordinates] = (data if return_data else None, metadata if return_metadata else None)
 
@@ -196,15 +220,6 @@ class AcquisitionFuture:
         elif return_metadata:
             return all_metadata
 
-    def _notify_execution_complete(self, return_value: Any = None, exception: Exception = None):
-        """
-        Notify the future that the event has completed
-        """
-        with self._event_complete_condition:
-            self._return_value = return_value
-            self._exception = exception
-            self._event_complete = True
-            self._event_complete_condition.notify_all()
 
     def _notify_data(self, image_coordinates: DataCoordinates, data, metadata, processed=False, stored=False):
         """
@@ -242,33 +257,4 @@ class AcquisitionFuture:
                                               metadata if self._awaited_stored_data[image_coordinates][1] else None)
             self._data_notification_condition.notify_all()
 
-    def _notify_of_event_notification(self, notification: Notification):
-        """
-        Called by the event to note that a notification has been posted
-        """
-        with self._generic_notification_condition:
-            self._received_notifications.add(notification)
-            self._generic_notification_condition.notify_all()
 
-    def await_notification(self, notification: Notification):
-        """
-        Block until a specific notification is received. If this notification was already received, this function will
-        return immediately.
-        """
-        with self._generic_notification_condition:
-            while True:
-                if notification in self._received_notifications:
-                    return
-                self._generic_notification_condition.wait()
-
-
-    def _check_if_coordinates_possible(self, coordinates):
-        """
-        Check if the given coordinates are possible for this event. raise a ValueError if not
-        """
-        possible = self._event.image_coordinate_iterator.might_produce_coordinates(coordinates)
-        if possible is False:
-            raise ValueError("This event is not expected to produce the given coordinates")
-        elif possible is None:
-            # TODO: suggest a better way to do this (ie a smart generator that knows if produced coordinates are valid)
-            warnings.warn("This event may not produce the given coordinates")

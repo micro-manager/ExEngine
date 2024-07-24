@@ -3,7 +3,7 @@ Unit tests for the multi_d_acquisition_events function.
 """
 import pytest
 import numpy as np
-from exengine.kernel.device_types_base import Camera, SingleAxisPositioner, DoubleAxisPositioner
+from exengine.kernel.device_types_base import Detector, SingleAxisPositioner, DoubleAxisPositioner
 from exengine.events.multi_d_events import multi_d_acquisition_events
 from exengine.events.positioner_events import SetPosition1DEvent, \
     SetTriggerable1DPositionsEvent
