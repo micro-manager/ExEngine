@@ -2,12 +2,12 @@ import time
 import warnings
 from dataclasses import dataclass
 
-from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.ex_event_base import ExecutorEvent
 from typing import Optional
 
 
 @dataclass
-class Sleep(AcquisitionEvent):
+class Sleep(ExecutorEvent):
     """
     Sleep for a specified amount of time
     """
@@ -18,7 +18,7 @@ class Sleep(AcquisitionEvent):
 
 # TODO: should this be set start time event?
 @dataclass
-class SetTimeEvent(AcquisitionEvent):
+class SetTimeEvent(ExecutorEvent):
     """Set the time point"""
     # TODO: why is time index needed??
     time_index: int

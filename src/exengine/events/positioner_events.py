@@ -1,62 +1,71 @@
-from typing import List, Union, Tuple, Optional
+from typing import List, Union, Tuple, Optional, SupportsFloat
 import numpy as np
 from dataclasses import dataclass
 
-from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.kernel.device_types_base import (DoubleAxisPositioner, SingleAxisPositioner,
                                                     TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
 
 
-@dataclass
-class SetPosition2DEvent(AcquisitionEvent):
+class SetPosition2DEvent(ExecutorEvent):
     """
     Set the position of a movable device
     """
-    device: Optional[DoubleAxisPositioner]
-    position: Tuple[float, float]
+    def __init__(self, device: Optional[DoubleAxisPositioner], position: Tuple[SupportsFloat, SupportsFloat]):
+        super().__init__()
+        self.device = device
+        self.position = (float(position[0]), float(position[1]))
 
     def execute(self):
         self.device.set_position(*self.position)
 
-@dataclass
-class SetTriggerable2DPositionsEvent(AcquisitionEvent):
+class SetTriggerable2DPositionsEvent(ExecutorEvent):
     """
     Set the position of a movable device
     """
-    device: Optional[DoubleAxisPositioner]
-    positions: Union[List[Tuple[float, float]], np.ndarray]
+
+    def __init__(self, device: Optional[TriggerableDoubleAxisPositioner], positions: Union[List[Tuple[float, float]], np.ndarray]):
+        super().__init__()
+        self.device = device
+        self.positions = positions
 
     def execute(self):
         self.device.set_position_sequence(self.positions)
 
-@dataclass
-class SetPosition1DEvent(AcquisitionEvent):
+class SetPosition1DEvent(ExecutorEvent):
     """
     Set the position of a movable device
     """
-    device: Optional[SingleAxisPositioner]
-    position: Union[float, int]
+
+    def __init__(self, device: Optional[SingleAxisPositioner], position: SupportsFloat):
+        super().__init__()
+        self.device = device
+        self.position = float(position)
 
     def execute(self):
         self.device.set_position(self.position)
 
-@dataclass
-class SetTriggerable1DPositionsEvent(AcquisitionEvent):
+class SetTriggerable1DPositionsEvent(ExecutorEvent):
     """
     Send a sequence of positions to a 1D positioner that will be triggered by TTL pulses
     """
-    device: Optional[TriggerableSingleAxisPositioner]
-    positions: Union[List[float], np.ndarray]
+
+    def __init__(self, device: Optional[TriggerableSingleAxisPositioner], positions: Union[List[float], np.ndarray]):
+        super().__init__()
+        self.device = device
+        self.positions = positions
 
     def execute(self):
         self.device.set_position_sequence(self.positions)
 
-@dataclass
-class StopTriggerablePositionSequenceEvent(AcquisitionEvent):
+class StopTriggerablePositionSequenceEvent(ExecutorEvent):
     """
     Stop the current triggerable sequence
     """
-    device: Optional[Union[TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner]]
+
+    def __init__(self, device: Optional[Union[TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner]]):
+        super().__init__()
+        self.device = device
 
     def execute(self):
         self.device.stop_position_sequence()

@@ -1,8 +1,8 @@
 from exengine.events.positioner_events import SetPosition2DEvent, SetPosition1DEvent
-from exengine.events.camera_events import StartCapture, ReadoutImages
-from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.events.detector_events import StartCapture, ReadoutData
+from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.events.misc_events import SetTimeEvent
-from exengine.kernel.device_types_base import SingleAxisPositioner, DoubleAxisPositioner, Camera
+from exengine.kernel.device_types_base import SingleAxisPositioner, DoubleAxisPositioner, Detector
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.events.property_events import (SetTriggerablePropertySequencesEvent,
                                              SetPropertiesEvent)
@@ -33,7 +33,7 @@ def multi_d_acquisition_events(
         position_labels: List[str] = None,
         order: str = "tpcz",
         sequence: str = None, # should be "zc", "cz", "tzc", etc
-        camera: Optional[Union[Camera, str]] = None,
+        camera: Optional[Union[Detector, str]] = None,
         xy_device: Optional[SingleAxisPositioner] = None,
         z_device: Optional[SingleAxisPositioner] = None,
 ):
@@ -152,7 +152,7 @@ def multi_d_acquisition_events(
                 # ))
 
             # Add StartCapture event
-            new_event_list.append(StartCapture(camera=camera, num_images=total_sequence_length))
+            new_event_list.append(StartCapture(detector=camera, num_images=total_sequence_length))
 
             # Create data coordinates for ReadoutImages
             axes_names = {"t": "time", "z": "z", "c": "channel", "p": "position"}
@@ -166,10 +166,10 @@ def multi_d_acquisition_events(
                 for i in range(total_sequence_length)
             ]
 
-            new_event_list.append(ReadoutImages(
-                camera=camera,
+            new_event_list.append(ReadoutData(
+                detector=camera,
                 num_images=total_sequence_length,
-                data_coordinate_iterator=coords_iterator
+                data_coordinates_iterator=coords_iterator
             ))
 
             yield new_event_list, coords
@@ -222,9 +222,9 @@ def multi_d_acquisition_events(
         if sequence is None:
             # Non-sequenced case: Add StartCapture and ReadoutImages events
             num_images = 1
-            event_set.append(StartCapture(camera=camera, num_images=num_images))
-            event_set.append(ReadoutImages(camera=camera, num_images=num_images,
-                                           data_coordinate_iterator=[DataCoordinates(**coords)]))
+            event_set.append(StartCapture(detector=camera, num_images=num_images))
+            event_set.append(ReadoutData(detector=camera, num_images=num_images,
+                                         data_coordinates_iterator=[DataCoordinates(**coords)]))
 
         final_events.append(event_set)
 

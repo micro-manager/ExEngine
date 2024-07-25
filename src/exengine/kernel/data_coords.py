@@ -1,5 +1,5 @@
 from typing import Dict, Union, Optional, Iterable, Sequence, Generator
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
 from collections.abc import MutableMapping
 import numpy as np
 
@@ -50,10 +50,10 @@ class DataCoordinates(BaseModel, MutableMapping):
                     setattr(self, key, value)
 
 
-    class Config:
-        validate_assignment = True
-        extra = 'allow' # allow setting of other axis names as attributes that are not in the model
-
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra='allow'  # allow setting of other axis names as attributes that are not in the model
+    )
     @staticmethod
     def _convert_to_python_int(value):
         if isinstance(value, np.integer):

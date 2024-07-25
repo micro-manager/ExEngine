@@ -1,13 +1,13 @@
-from mmpycorex import create_core_instance, terminate_core_instances
+from mmpycorex import create_core_instance, terminate_core_instances, get_default_install_location
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.backends.micromanager.mm_device_implementations import MicroManagerCamera
 import os
 from exengine.kernel.executor import ExecutionEngine
-from exengine.kernel.acq_event_base import DataHandler
+from exengine.kernel.ex_event_base import DataHandler
 from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
-from exengine.events.camera_events import StartCapture, ReadoutImages
+from exengine.events.detector_events import StartCapture, ReadoutData
 
-mm_install_dir = '/Users/henrypinkard/Micro-Manager'
+mm_install_dir = get_default_install_location()
 config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
 create_core_instance(mm_install_dir, config_file,
                buffer_size_mb=1024, max_memory_mb=1024,  # set these low for github actions
@@ -25,9 +25,9 @@ num_images = 100
 data_handler = DataHandler(storage=NDRAMStorage())
 
 start_capture_event = StartCapture(num_images=num_images, camera=camera)
-readout_images_event = ReadoutImages(num_images=num_images, camera=camera,
-                                     image_coordinate_iterator=[DataCoordinates(time=t) for t in range(num_images)],
-                                     data_handler=data_handler)
+readout_images_event = ReadoutData(num_images=num_images, camera=camera,
+                                   image_coordinate_iterator=[DataCoordinates(time=t) for t in range(num_images)],
+                                   data_handler=data_handler)
 executor.submit(start_capture_event)
 future = executor.submit(readout_images_event)
 

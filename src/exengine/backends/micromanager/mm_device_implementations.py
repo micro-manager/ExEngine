@@ -2,8 +2,8 @@
 Implementation of Micro-Manager device_implementations.py in terms of the AcqEng bottom API
 """
 
-from exengine.kernel.device_types_base import (Camera, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
-from kernel.device_types_base import Device
+from exengine.kernel.device_types_base import (Detector, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
+from exengine.kernel.device_types_base import Device
 from mmpycorex import Core
 import numpy as np
 import pymmcore
@@ -200,7 +200,7 @@ class MicroManagerXYStage(MicroManagerDevice, TriggerableDoubleAxisPositioner):
         return self._core_noexec.stop_xy_stage_sequence(self._device_name_noexec)
 
 
-class MicroManagerCamera(MicroManagerDevice, Camera):
+class MicroManagerCamera(MicroManagerDevice, Detector):
 
     def __init__(self, name=None):
         """

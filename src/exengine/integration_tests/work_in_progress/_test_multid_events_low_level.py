@@ -6,8 +6,8 @@ construction of low-level acquisition events
 import os
 import numpy as np
 import pytest
-from mmpycorex import create_core_instance, terminate_core_instances
-from backends.micromanager.mm_device_implementations import (
+from mmpycorex import create_core_instance, terminate_core_instances, get_default_install_location
+from exengine.backends.micromanager.mm_device_implementations import (
     MicroManagerSingleAxisStage, MicroManagerDevice, MicroManagerXYStage, MicroManagerCamera
 )
 from exengine.kernel.executor import ExecutionEngine
@@ -20,12 +20,12 @@ from exengine.events.property_events import (
     SetTriggerablePropertySequencesEvent, StopTriggerablePropertySequencesEvent
 )
 from exengine.kernel.data_coords import DataCoordinates
-from exengine.events.camera_events import StartCapture, ReadoutImages
+from exengine.events.detector_events import StartCapture, ReadoutData
 
 
 @pytest.fixture(scope="module")
 def setup_micromanager():
-    mm_install_dir = '/Users/henrypinkard/Micro-Manager'
+    mm_install_dir = get_default_install_location()
     config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
     create_core_instance(mm_install_dir, config_file,
                    buffer_size_mb=1024, max_memory_mb=1024,
@@ -56,9 +56,9 @@ def test_non_sequenced_z_stack(setup_micromanager, execution_engine, devices):
     events = []
     for z_index, z_pos in enumerate(np.arange(0, 20, 4)):
         events.append(SetPosition1DEvent(device=z_device, position=z_pos))
-        events.append(StartCapture(camera=camera_device, num_images=1))
-        events.append(ReadoutImages(camera=camera_device, image_coordinate_iterator=[DataCoordinates(z=z_index)],
-                                    data_handler=data_handler))
+        events.append(StartCapture(detector=camera_device, num_images=1))
+        events.append(ReadoutData(detector=camera_device, data_coordinates_iterator=[DataCoordinates(z=z_index)],
+                                  data_handler=data_handler))
 
     futures = execution_engine.submit(events)
     futures[-1].await_execution()
@@ -78,10 +78,10 @@ def test_sequenced_z_stack(setup_micromanager, execution_engine, devices):
 
     z_positions = np.arange(0, 20, 4)
     z_sequence = SetTriggerable1DPositionsEvent(device=z_device, positions=z_positions)
-    start_capture_event = StartCapture(camera=camera_device, num_images=len(z_positions))
-    readout_event = ReadoutImages(camera=camera_device,
-                                  image_coordinate_iterator=(DataCoordinates(z=z) for z in range(len(z_positions))),
-                                  data_handler=data_handler)
+    start_capture_event = StartCapture(detector=camera_device, num_images=len(z_positions))
+    readout_event = ReadoutData(detector=camera_device,
+                                data_coordinates_iterator=(DataCoordinates(z=z) for z in range(len(z_positions))),
+                                data_handler=data_handler)
     stop_sequence_event = StopTriggerablePositionSequenceEvent(device=z_device)
 
     _, _, _, future = execution_engine.submit([z_sequence, start_capture_event, readout_event, stop_sequence_event])
@@ -103,10 +103,10 @@ def test_sequence_over_channels(setup_micromanager, execution_engine, devices):
     values = ['Nikon 10X S Fluor', 'Nikon 20X Plan Fluor ELWD', 'Nikon 40X Plan Fluor ELWD']
     channel_names = ['A', 'B', 'C']
     prop_sequence = SetTriggerablePropertySequencesEvent(property_sequences=[(objective_device, 'Label', values)])
-    start_capture_event = StartCapture(camera=camera_device, num_images=len(values))
-    readout_event = ReadoutImages(camera=camera_device,
-                                  image_coordinate_iterator=(DataCoordinates(channel=c) for c in channel_names),
-                                  data_handler=data_handler)
+    start_capture_event = StartCapture(detector=camera_device, num_images=len(values))
+    readout_event = ReadoutData(detector=camera_device,
+                                data_coordinates_iterator=(DataCoordinates(channel=c) for c in channel_names),
+                                data_handler=data_handler)
     stop_sequence_event = StopTriggerablePropertySequencesEvent(property_sequences=[(objective_device, 'Label')])
 
     _, _, _, future = execution_engine.submit([prop_sequence, start_capture_event, readout_event, stop_sequence_event])

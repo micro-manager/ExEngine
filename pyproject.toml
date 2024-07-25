@@ -11,15 +11,14 @@ classifiers = [
     "Operating System :: OS Independent"
     ]
 dependencies = [
+"mmpycorex"
 ]
 dynamic = ["version"]
 description = "Microscopy execution engine with support for multiple hardware backends"
 readme = "README.md"
 
 [project.optional-dependencies]
-micromanager = ["mmpycorex"]
-minimal = []  # A minimal installation without any specific backends
-
+test = ["pytest"]  # New test dependencies group
 
 
 [project.urls]

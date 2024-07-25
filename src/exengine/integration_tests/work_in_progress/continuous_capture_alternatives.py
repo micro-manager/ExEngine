@@ -13,7 +13,7 @@ import itertools
 
 
 # TODO: make this a pytest startup fixture
-mm_install_dir = '/Users/henrypinkard/Micro-Manager'
+mm_install_dir =get_default_install_location()
 config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
 start_headless(mm_install_dir, config_file,
                buffer_size_mb=1024, max_memory_mb=1024,  # set these low for github actions
