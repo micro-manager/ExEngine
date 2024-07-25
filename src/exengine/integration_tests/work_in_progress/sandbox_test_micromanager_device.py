@@ -5,9 +5,9 @@ from exengine.kernel.ex_event_base import DataHandler
 from exengine.backends.micromanager.mm_device_implementations import MicroManagerCamera
 from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
 from exengine.events.detector_events import StartCapture, ReadoutData
-from mmpycorex import create_core_instance, terminate_core_instances
+from mmpycorex import create_core_instance, terminate_core_instances, get_default_install_location
 
-mm_install_dir = '/Users/henrypinkard/Micro-Manager'
+mm_install_dir = get_default_install_location()
 config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
 create_core_instance(mm_install_dir, config_file,
                buffer_size_mb=1024, max_memory_mb=1024,  # set these low for github actions

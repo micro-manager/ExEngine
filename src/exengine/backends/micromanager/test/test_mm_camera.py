@@ -2,7 +2,7 @@ import pytest
 import time
 import os
 import itertools
-from mmpycorex import create_core_instance, terminate_core_instances
+from mmpycorex import create_core_instance, terminate_core_instances, get_default_install_location
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
@@ -13,7 +13,7 @@ from exengine.events.detector_events import (StartCapture, ReadoutData,
 
 @pytest.fixture(scope="module")
 def setup_micromanager():
-    mm_install_dir = '/Users/henrypinkard/Micro-Manager'
+    mm_install_dir = get_default_install_location()
     config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
     create_core_instance(mm_install_dir, config_file,
                    buffer_size_mb=1024, max_memory_mb=1024,  # set these low for github actions
