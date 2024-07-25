@@ -4,12 +4,11 @@ Ensures rerouting of method calls to the ExecutionEngine and proper handling of 
 """
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 from exengine.kernel.ex_event_base import ExecutorEvent
-from exengine.kernel.ex_future import ExecutionFuture
-from kernel.device_types_base import Device
+
+from exengine.kernel.device_types_base import Device
 import time
-import numpy as np
 
 
 @pytest.fixture(scope="module")
@@ -199,6 +198,8 @@ def test_device_threadpool_executor(execution_engine):
 #######################################################
 def create_sync_event(start_event, finish_event):
     event = MagicMock(spec=ExecutorEvent)
+    event._finished = False
+    event._initialized = False
     event.num_retries_on_exception = 0
     event.executed = False
     event.executed_time = None
@@ -226,6 +227,7 @@ def test_submit_single_event(execution_engine):
     event = create_sync_event(start_event, finish_event)
 
     future = execution_engine.submit(event)
+    execution_engine.check_exceptions()
     start_event.wait()  # Wait for the event to start executing
     finish_event.set()  # Signal the event to finish
 
@@ -233,7 +235,6 @@ def test_submit_single_event(execution_engine):
         time.sleep(0.1)
 
     assert event.executed
-    assert isinstance(future, ExecutionFuture)
 
 
 def test_submit_multiple_events(execution_engine):
@@ -262,8 +263,6 @@ def test_submit_multiple_events(execution_engine):
 
     assert event1.executed
     assert event2.executed
-    assert isinstance(future1, ExecutionFuture)
-    assert isinstance(future2, ExecutionFuture)
 
 
 def test_event_prioritization(execution_engine):

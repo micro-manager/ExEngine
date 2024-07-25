@@ -10,25 +10,25 @@ from dataclasses import field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING: # avoid circular imports
-    from exengine.kernel.ex_event_base import ExecutorEvent, DataProducing, Stoppable, Abortable
+    from exengine.kernel.ex_event_base import ExecutorEvent
 
-
-TEventFutureCapabilities = TypeVar('TEventFutureCapabilities')  # Generic for methods that get added to the future
 
 class ExecutionFuture:
 
     def __init__(self, event: 'ExecutorEvent'):
         self.event = event
-        event._set_future(self) # so that the event can notify the future when it is done and when data is acquired
-        self._event_complete_condition = threading.Condition()
-        self._data_notification_condition = threading.Condition()
-        self._generic_notification_condition = threading.Condition()
+        self._event_complete_condition: threading.Condition = threading.Condition()
+        self._data_notification_condition: threading.Condition = threading.Condition()
+        self._generic_notification_condition: threading.Condition = threading.Condition()
         self._event_complete = False
+
+
         self._acquired_data_coordinates: Set[DataCoordinates] = set()
         self._processed_data_coordinates: Set[DataCoordinates] = set()
         self._stored_data_coordinates: Set[DataCoordinates] = set()
         self._received_notifications = set()
 
+        # For DataProducing events, we need to keep track of data that has been acquired, processed, and stored, as well
         self._awaited_acquired_data: Dict[DataCoordinates, Tuple[Any, Any]] = {}
         self._awaited_processed_data: Dict[DataCoordinates, Tuple[Any, Any]] = {}
         self._awaited_stored_data: Dict[DataCoordinates, Tuple[Any, Any]] = {}
@@ -37,14 +37,15 @@ class ExecutionFuture:
         self._exception = None
 
 
-    def await_execution(self) -> Any:
+    def await_execution(self, timeout=None) -> Any:
         """
         Block until the event is complete. If event.execute returns a value, it will be returned here.
         If event.execute raises an exception, it will be raised here as well
         """
         with self._event_complete_condition:
             while not self._event_complete:
-                self._event_complete_condition.wait()
+                if not self._event_complete_condition.wait(timeout):
+                    raise TimeoutError("Timed out waiting for event to complete")
         if self._exception is not None:
             raise self._exception
         return self._return_value
@@ -131,10 +132,6 @@ class ExecutionFuture:
               without having to retrieve
         """
 
-        # Check if this event produces data
-        if not isinstance(self.event, DataProducing):
-            raise ValueError("This event does not produce data")
-
         coordinates_iterator = DataCoordinatesIterator.create(coordinates)
         # check that an infinite number of images is not requested
         if not coordinates_iterator.is_finite():
@@ -151,27 +148,27 @@ class ExecutionFuture:
                 if not processed and not stored:
                     # make sure this is a valid thing to wait for. This can only be done before processing and
                     #  storage_backends, because processors and data storage_backends classes may optionally modify the data
-                    self.event._check_if_coordinates_possible(coordinates)
+                    self._check_if_coordinates_possible(coordinates)
                     if data_coordinates not in self._acquired_data_coordinates:
                         # register that we're awaiting this data, so that if it arrives on the other thread while other
                         # images are being read from disk, it will be hung onto in memory, thereby avoid unnecessary reads
-                        self.event._awaited_acquired_data[coordinates] = (return_data, return_metadata)
+                        self._awaited_acquired_data[coordinates] = (return_data, return_metadata)
                     else:
                         to_read.add(data_coordinates)
                 elif processed and not stored:
                     if data_coordinates not in self._processed_data_coordinates:
-                        self.event._awaited_processed_data[coordinates] = (return_data, return_metadata)
+                        self._awaited_processed_data[coordinates] = (return_data, return_metadata)
                     else:
                         to_read.add(data_coordinates)
                 else: # data stored
                     if data_coordinates not in self._stored_data_coordinates:
-                        self.event._awaited_stored_data[coordinates] = (return_data, return_metadata)
+                        self._awaited_stored_data[coordinates] = (return_data, return_metadata)
                     else:
                         to_read.add(data_coordinates)
 
         # retrieve any data that has already passed through the pipeline from the data storage_backends, via the data handler
         for data_coordinates in to_read:
-            data, metadata = self.event._data_handler.get(data_coordinates, return_data, return_metadata)
+            data, metadata = self._data_handler.get(data_coordinates, return_data, return_metadata)
             # save memory for a potential big retrieval
             result[data_coordinates] = (data if return_data else None, metadata if return_metadata else None)
 
@@ -198,7 +195,7 @@ class ExecutionFuture:
                         data, metadata = self._awaited_processed_data[data_coordinates]
                     result[data_coordinates] = self._awaited_processed_data.pop(data_coordinates)
 
-            else: # data stored
+            else:  # data stored
                 data_coordinates_list = list(self._awaited_stored_data.keys())
                 for data_coordinates in data_coordinates_list:
                     data = return_data
@@ -219,6 +216,18 @@ class ExecutionFuture:
             return all_data
         elif return_metadata:
             return all_metadata
+
+    def _check_if_coordinates_possible(self, coordinates):
+        """
+        Check if the given coordinates are possible for this event. raise a ValueError if not
+        """
+        possible = self.event.data_coordinate_iterator.might_produce_coordinates(coordinates)
+        if possible is False:
+            raise ValueError("This event is not expected to produce the given coordinates")
+        elif possible is None:
+            # TODO: suggest a better way to do this (ie a smart generator that knows if produced coordinates are valid)
+            warnings.warn("This event may not produce the given coordinates")
+
 
 
     def _notify_data(self, image_coordinates: DataCoordinates, data, metadata, processed=False, stored=False):

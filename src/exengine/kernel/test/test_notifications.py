@@ -4,7 +4,7 @@ import numpy as np
 
 from exengine.kernel.notification_base import Notification, NotificationCategory
 from exengine.kernel.ex_event_base import ExecutorEvent
-from kernel.notification_base import EventExecutedNotification
+from exengine.kernel.notification_base import EventExecutedNotification
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_storage_api import DataStorageAPI
@@ -55,8 +55,7 @@ def test_event_completion_notification(mock_execution_engine):
     Test that notifications are posted when an event completes.
     """
     event = CustomEvent()
-    mock_future = Mock()
-    event._set_future(mock_future)
+    event._pre_execution(mock_execution_engine)
     event._post_execution(mock_execution_engine)
 
     # Check if the notification was published
@@ -71,7 +70,8 @@ def test_custom_notification_posting(mock_execution_engine):
     """
     event = CustomEvent()
     mock_future = Mock()
-    event._set_future(mock_future)
+    event._pre_execution(mock_execution_engine)
+    event._future_weakref = Mock(return_value=mock_future)
 
     custom_notification = CustomNotification()
     event.publish_notification(custom_notification)
@@ -90,7 +90,7 @@ def test_invalid_notification_type_warning():
         description = "Invalid notification"
 
     event = CustomEvent()
-    event._set_future(Mock())
+    event._pre_execution(Mock())
 
     with pytest.warns(UserWarning):
         event.publish_notification(InvalidNotification())
@@ -101,8 +101,7 @@ def test_event_exception_in_notification(mock_execution_engine):
     Test that when an event raises an exception, it's included in the completion notification.
     """
     event = CustomEvent()
-    event._set_future(Mock())
-
+    event._pre_execution(mock_execution_engine)
     test_exception = ValueError("Test exception")
     event._post_execution(mock_execution_engine, exception=test_exception)
 

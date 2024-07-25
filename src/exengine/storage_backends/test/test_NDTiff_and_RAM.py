@@ -1,12 +1,15 @@
 import pytest
 import numpy as np
 from exengine.kernel.data_coords import DataCoordinates
-from exengine.storage_backends.NDTiffandRAM import NDStorage
+from exengine.storage_backends.NDTiffandRAM import NDRAMStorage, NDTiffStorage
 from exengine.kernel.data_storage_api import DataStorageAPI
 
 @pytest.fixture(params=["tiff", "ram"])
 def data_storage(request, tmp_path):
-    return NDStorage(directory=str(tmp_path)) if request.param == "tiff" else NDStorage()
+    if request.param == "tiff":
+        return NDTiffStorage(directory=str(tmp_path))
+    else:
+        return NDRAMStorage()
 
 def test_fully_implements_protocol(data_storage):
     assert isinstance(data_storage, DataStorageAPI), "NDStorage does not fully implement DataStorageAPI"

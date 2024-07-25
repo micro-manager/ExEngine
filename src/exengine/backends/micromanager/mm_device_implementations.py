@@ -3,7 +3,7 @@ Implementation of Micro-Manager device_implementations.py in terms of the AcqEng
 """
 
 from exengine.kernel.device_types_base import (Detector, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
-from kernel.device_types_base import Device
+from exengine.kernel.device_types_base import Device
 from mmpycorex import Core
 import numpy as np
 import pymmcore

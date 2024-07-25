@@ -12,64 +12,84 @@ from exengine.kernel.executor import ExecutionEngine
 import threading
 import sys
 
-_python_debugger_active = any('pydevd' in sys.modules for frame in sys._current_frames().values())
 
 
+def _initialize_thread_patching():
+    _python_debugger_active = any('pydevd' in sys.modules for frame in sys._current_frames().values())
 
-# All threads that were created by code running on an executor thread, or created by threads that were created by
-# code running on an executor thread etc. Don't want to auto-reroute these to the executor because this might have
-# unintended consequences. So they need to be tracked and not rerouted
-_within_executor_threads = WeakSet()
-# Keep this list accessible outside of class attributes to avoid infinite recursion
-_no_executor_attrs = ['_name', '_no_executor', '_no_executor_attrs']
+    # All threads that were created by code running on an executor thread, or created by threads that were created by
+    # code running on an executor thread etc. Don't want to auto-reroute these to the executor because this might have
+    # unintended consequences. So they need to be tracked and not rerouted
+    _within_executor_threads = WeakSet()
 
-def thread_start_hook(thread):
-    # keep track of threads that were created by code running on an executor thread so calls on them
-    # dont get rerouted to the executor
-    if ExecutionEngine.on_any_executor_thread() or threading.current_thread() in _within_executor_threads:
-        _within_executor_threads.add(thread)
+    # Keep this list accessible outside of class attributes to avoid infinite recursion
+    # Note: This is already defined at module level, so we don't redefine it here
 
-# Monkey patch the threading module so we can monitor the creation of new threads
-_original_thread_start = threading.Thread.start
+    def thread_start_hook(thread):
+        # keep track of threads that were created by code running on an executor thread so calls on them
+        # dont get rerouted to the executor
+        if ExecutionEngine.get_instance() and (
+                ExecutionEngine.on_any_executor_thread() or threading.current_thread() in _within_executor_threads):
+            _within_executor_threads.add(thread)
 
-# Define a new start method that adds the hook
-def _thread_start(self, *args, **kwargs):
-    try:
-        thread_start_hook(self)
-        _original_thread_start(self, *args, **kwargs)
-    except Exception as e:
-        print(f"Error in thread start hook: {e}")
-        # traceback.print_exc()
+    # Monkey patch the threading module so we can monitor the creation of new threads
+    _original_thread_start = threading.Thread.start
 
-# Replace the original start method with the new one
-threading.Thread.start = _thread_start
+    # Define a new start method that adds the hook
+    def _thread_start(self, *args, **kwargs):
+        try:
+            thread_start_hook(self)
+            _original_thread_start(self, *args, **kwargs)
+        except Exception as e:
+            print(f"Error in thread start hook: {e}")
+            # traceback.print_exc()
+
+    # Replace the original start method with the new one
+    threading.Thread.start = _thread_start
+    threading.Thread._monkey_patched_start = True
+
+    return _python_debugger_active, _within_executor_threads, _original_thread_start
+
+
+# Call this function to initialize the thread patching
+if not hasattr(threading.Thread, '_monkey_patched_start'):
+    _python_debugger_active, _within_executor_threads, _original_thread_start = _initialize_thread_patching()
+    _no_executor_attrs = ['_name', '_no_executor', '_no_executor_attrs']
+
 
 @dataclass
 class MethodCallEvent(ExecutorEvent):
-    method_name: str
-    args: tuple
-    kwargs: Dict[str, Any]
-    instance: Any
+
+    def __init__(self, method_name: str, args: tuple, kwargs: Dict[str, Any], instance: Any):
+        super().__init__()
+        self.method_name = method_name
+        self.args = args
+        self.kwargs = kwargs
+        self.instance = instance
 
     def execute(self):
         method = getattr(self.instance, self.method_name)
         return method(*self.args, **self.kwargs)
 
-@dataclass
 class GetAttrEvent(ExecutorEvent):
-    attr_name: str
-    instance: Any
-    method: Callable
+
+    def __init__(self, attr_name: str, instance: Any, method: Callable):
+        super().__init__()
+        self.attr_name = attr_name
+        self.instance = instance
+        self.method = method
 
     def execute(self):
         return self.method(self.instance, self.attr_name)
 
-@dataclass
 class SetAttrEvent(ExecutorEvent):
-    attr_name: str
-    value: Any
-    instance: Any
-    method: Callable
+
+    def __init__(self, attr_name: str, value: Any, instance: Any, method: Callable):
+        super().__init__()
+        self.attr_name = attr_name
+        self.value = value
+        self.instance = instance
+        self.method = method
 
     def execute(self):
         self.method(self.instance, self.attr_name, self.value)

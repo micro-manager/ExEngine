@@ -35,8 +35,6 @@ class ExecutionEngine:
         return cls._instance
 
     def __init__(self, num_threads=1):
-        # delayed import to avoid circular imports
-        from exengine.kernel.ex_event_base import ExecutorEvent, Stoppable, Abortable
         self._exceptions = queue.Queue()
         self._devices = {}
         self._notification_queue = queue.Queue()
@@ -97,7 +95,6 @@ class ExecutionEngine:
         while not self._shutdown_event.is_set() or self._notification_queue.qsize() > 0:
             try:
                 notification = self._notification_queue.get(timeout=1)
-                print('notifyi subscriber thread  ' + str(notification))
             except queue.Empty:
                 continue
             with self._notification_lock:
@@ -106,7 +103,6 @@ class ExecutionEngine:
                         continue  # not interested in this type
                     if filter is not None and isinstance(filter, NotificationCategory) and notification.category != filter:
                         continue
-                    print('notified subscriber thread')
                     subscriber(notification)
 
     def publish_notification(self, notification: Notification):
@@ -117,8 +113,6 @@ class ExecutionEngine:
 
     @classmethod
     def get_instance(cls) -> 'ExecutionEngine':
-        if cls._instance is None:
-            raise RuntimeError("ExecutionEngine has not been initialized")
         return cls._instance
 
     @classmethod
@@ -154,7 +148,7 @@ class ExecutionEngine:
     @classmethod
     def on_any_executor_thread(cls):
         if ExecutionEngine.get_instance() is None:
-            raise RuntimeError("ExecutionEngine has not been initialized")
+            raise RuntimeError("on_any_executor_thread: ExecutionEngine has not been initialized")
         result = (hasattr(threading.current_thread(), 'execution_engine_thread')
                   and threading.current_thread().execution_engine_thread)
         return result
@@ -252,7 +246,7 @@ class ExecutionEngine:
         """
         Submit a single event for execution
         """
-        future = event._create_future()
+        future = event._pre_execution(self)
         if use_free_thread:
             need_new_thread = True
             for thread in self._thread_managers:
@@ -282,7 +276,9 @@ class ExecutionEngine:
             thread.join()
 
         # Make sure the notification thread is stopped
-        self._notification_thread.join()
+        if self._notification_thread is not None:
+            # It was never started if no one subscribed
+            self._notification_thread.join()
         # delete singleton instance
         ExecutionEngine._instance = None
 
@@ -349,10 +345,8 @@ class _ExecutionThreadManager:
                 try:
                     if ExecutionEngine._debug:
                         print("Executing event", event.__class__.__name__, threading.current_thread())
-                    # TODO: you should be able to re-run events now
-                    if event.finished:
+                    if event._finished:
                         raise RuntimeError("Event ", event, " was already executed")
-                    event._pre_execution(ExecutionEngine.get_instance())
                     return_val = event.execute()
                     if ExecutionEngine._debug:
                         print("Finished executing", event.__class__.__name__, threading.current_thread())

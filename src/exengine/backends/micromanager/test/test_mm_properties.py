@@ -4,9 +4,9 @@ This class tests the access of micro-manager properties through the MicroManager
 import pytest
 from mmpycorex import Core
 import os
-from mmpycorex import create_core_instance
+from mmpycorex import create_core_instance, terminate_core_instances
 from exengine.kernel.executor import ExecutionEngine
-from backends.micromanager.mm_device_implementations import MicroManagerDevice
+from exengine.backends.micromanager.mm_device_implementations import MicroManagerDevice
 
 
 @pytest.fixture(scope="module")
@@ -18,7 +18,7 @@ def setup_micromanager():
                    python_backend=True,
                    debug=False)
     yield
-    # No specific teardown needed for start_headless
+    terminate_core_instances()
 
 @pytest.fixture(scope="module")
 def executor():
@@ -38,7 +38,7 @@ def device(core, executor):
 
 def test_init(device):
     assert isinstance(device, MicroManagerDevice)
-    assert device.name == "Camera"
+    assert device._name == "Camera"
 
 
 def test_getattr_existing_property(device):
