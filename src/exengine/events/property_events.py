@@ -1,14 +1,15 @@
 from typing import Any, Iterable, Tuple, Union, List
 from dataclasses import dataclass
-from kernel.device_types_base import Device
+from exengine.kernel.device_types_base import Device
 from exengine.kernel.executor import ExecutionEngine
-from exengine.kernel.acq_event_base import AcquisitionEvent
+from exengine.kernel.ex_event_base import ExecutorEvent
 
-@dataclass
-class SetPropertiesEvent(AcquisitionEvent):
+class SetPropertiesEvent(ExecutorEvent):
     """ Set one or more properties (i.e. attributes) of one or more devices """
 
-    devices_prop_names_values: Iterable[Tuple[Union[Device, str], str, Any]]
+    def __init__(self, devices_prop_names_values: Iterable[Tuple[Union[Device, str], str, Any]]):
+        super().__init__()
+        self.devices_prop_names_values = devices_prop_names_values
 
     def execute(self):
         # set all the properties
@@ -18,8 +19,7 @@ class SetPropertiesEvent(AcquisitionEvent):
             setattr(device, prop_name, value)
 
 
-@dataclass
-class SetTriggerablePropertySequencesEvent(AcquisitionEvent):
+class SetTriggerablePropertySequencesEvent(ExecutorEvent):
     """
     Set a sequence of must for properties of different devices to be cycled through by hardware triggers
     The properties should be triggerable
@@ -30,7 +30,9 @@ class SetTriggerablePropertySequencesEvent(AcquisitionEvent):
     - The sequence of values (e.g. a list) to set the property to
     """
 
-    property_sequences: Iterable[Tuple[Union[Device, str], str, Iterable[Any]]]
+    def __init__(self, property_sequences: Iterable[Tuple[Union[Device, str], str, Iterable[Any]]]):
+        super().__init__()
+        self.property_sequences = property_sequences
 
     def execute(self):
         # Load all sequences
@@ -49,8 +51,7 @@ class SetTriggerablePropertySequencesEvent(AcquisitionEvent):
             device.start_triggerable_sequence(prop_name)
 
 
-@dataclass
-class StopTriggerablePropertySequencesEvent(AcquisitionEvent):
+class StopTriggerablePropertySequencesEvent(ExecutorEvent):
     """
     Stop the current triggerable sequence for one or more properties of different devices
 
@@ -59,7 +60,9 @@ class StopTriggerablePropertySequencesEvent(AcquisitionEvent):
     - The name of the property to with a property sequence to stop
     """
 
-    property_sequences: Iterable[Tuple[Union[Device, str], str]]
+    def __init__(self, property_sequences: Iterable[Tuple[Union[Device, str], str]]):
+        super().__init__()
+        self.property_sequences = property_sequences
 
     def execute(self):
         for device, prop_name in self.property_sequences:

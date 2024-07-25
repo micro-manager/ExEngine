@@ -5,7 +5,9 @@ import time
 import pytest
 import numpy as np
 from typing import Dict
+from unittest.mock import Mock
 
+from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.kernel.data_storage_api import DataStorageAPI
@@ -35,6 +37,11 @@ class MockDataStorage(DataStorageAPI):
     def __contains__(self, coords: DataCoordinates) -> bool:
         return coords in self.data
 
+@pytest.fixture
+def mock_execution_engine(monkeypatch):
+    mock_engine = Mock(spec=ExecutionEngine)
+    monkeypatch.setattr(ExecutionEngine, 'get_instance', lambda: mock_engine)
+    return mock_engine
 
 @pytest.fixture
 def mock_data_storage():
@@ -42,8 +49,8 @@ def mock_data_storage():
 
 
 @pytest.fixture
-def data_handler(mock_data_storage):
-    return DataHandler(mock_data_storage)
+def data_handler(mock_data_storage, mock_execution_engine):
+    return DataHandler(mock_data_storage, _executor=mock_execution_engine)
 
 
 def test_data_handler_put_and_get(data_handler):
@@ -96,7 +103,7 @@ def test_data_handler_shutdown(data_handler, mock_data_storage):
     Test that DataHandler signals the storage_backends to finish correctly.
     """
     data_handler.finish()  # Signal to finish
-    data_handler.join()
+    data_handler.await_completion()
 
     assert mock_data_storage.finished
 def test_data_handler_with_acquisition_future(data_handler):

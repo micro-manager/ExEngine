@@ -5,12 +5,14 @@ import numpy as np
 from pydantic.types import JsonValue
 from dataclasses import dataclass
 
+from exengine.kernel.notification_base import DataStoredNotification
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.kernel.data_storage_api import DataStorageAPI
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
-    from exengine.kernel.acq_future import AcquisitionFuture
+    from exengine.kernel.ex_future import ExecutionFuture
 
 
 class _PeekableQueue(queue.Queue):
@@ -25,7 +27,7 @@ class _PeekableQueue(queue.Queue):
 class _DataMetadataFutureHolder:
     data: np.ndarray
     metadata: Dict
-    future: Optional["AcquisitionFuture"]
+    future: Optional["ExecutionFuture"]
     processed: bool = False
 
     def upack(self):
@@ -50,7 +52,14 @@ class DataHandler:
     def __init__(self, storage: DataStorageAPI,
                  process_function: Callable[[DataCoordinates, np.ndarray, JsonValue],
                                 Optional[Union[DataCoordinates, np.ndarray, JsonValue,
-                                               Tuple[DataCoordinates, np.ndarray, JsonValue]]]] = None):
+                                               Tuple[DataCoordinates, np.ndarray, JsonValue]]]] = None,
+                 _executor=None):
+        # delayed import to avoid circular imports
+        if _executor is None:
+            from exengine.kernel.executor import ExecutionEngine
+            self._engine = ExecutionEngine.get_instance()
+        else:
+            self._engine = _executor
         self._storage = storage
         self._process_function = process_function
         self._intake_queue = _PeekableQueue()
@@ -96,7 +105,7 @@ class DataHandler:
                 original_data_coordinates_replaced = False
                 # deal with the fact that the processor may return no items, a single item, or a list of items
                 if processed is None:
-                    pass # the data was discarded or diverted
+                    pass  # the data was discarded or diverted
                     # Could add callback here to notify the future that the data was discarded
                 elif isinstance(processed, tuple) and not isinstance(processed[0], tuple):  # single item
                     coordinates, data, metadata = self._unpack_processed_image(processed)
@@ -118,7 +127,8 @@ class DataHandler:
                         if future:
                             future._notify_data(coordinates, data, metadata, processed=True, stored=False)
                 if not original_data_coordinates_replaced:
-                    # if the image processor did not provide a execution_engine image with the same coordinates, discard the original
+                    # if the image processor did not provide a execution_engine image with the same coordinates,
+                    # discard the original
                     self._data_metadata_future_tuple.pop(original_coordinates)
                 # remove the item from the intake queue
                 self._intake_queue.get()
@@ -150,13 +160,14 @@ class DataHandler:
         else:
             data, metadata, future = self._data_metadata_future_tuple[coordinates].upack()
             self._storage.put(coordinates, data, metadata) # once this returns the storage_backends is responsible for the data
+            self._engine.publish_notification(DataStoredNotification(payload=coordinates))
             coordinates = self._processed_queue.get() if self._process_function else self._intake_queue.get()
             self._data_metadata_future_tuple.pop(coordinates)
             if future:
                 future._notify_data(coordinates, data, metadata, processed=True, stored=True)
             return False
 
-    def join(self):
+    def await_completion(self):
         """
         Wait for the threads to finish
         """
@@ -192,7 +203,7 @@ class DataHandler:
         return data, metadata
 
 
-    def put(self, coordinates: Any, image: np.ndarray, metadata: Dict, acquisition_future: Optional["AcquisitionFuture"]):
+    def put(self, coordinates: Any, image: np.ndarray, metadata: Dict, execution_future: Optional["ExecutionFuture"]):
         """
         Hand off this image to the data handler. It will handle handoff to the storage_backends object and image processing
         if requested, as well as providing temporary access to the image and metadata as it passes throught this
@@ -201,11 +212,11 @@ class DataHandler:
         """
         # store the data before adding a record of it to the queue, to avoid having to lock anything
         self._data_metadata_future_tuple[coordinates] = _DataMetadataFutureHolder(
-            image, metadata, acquisition_future)
+            image, metadata, execution_future)
         self._intake_queue.put(coordinates)
 
-        if acquisition_future:
-            acquisition_future._notify_data(coordinates, image, metadata, processed=False, stored=False)
+        if execution_future:
+            execution_future._notify_data(coordinates, image, metadata, processed=False, stored=False)
 
     def finish(self):
         """
