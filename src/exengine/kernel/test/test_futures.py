@@ -6,7 +6,8 @@ import time
 
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
-from exengine.kernel.ex_event_base import ExecutorEvent, DataProducing
+from exengine.kernel.ex_event_base import ExecutorEvent
+from exengine.kernel.ex_event_capabilities import DataProducing
 from exengine.kernel.ex_future import ExecutionFuture
 
 class MockDataHandler(DataHandler):
@@ -20,13 +21,13 @@ class MockDataHandler(DataHandler):
         if coords not in self.data_storage:
             return None, None
         data, metadata = self.data_storage[coords]
-        return (data if return_data else None, metadata if return_metadata else None)
+        return data if return_data else None, metadata if return_metadata else None
 
 
-class MockDataProducing(ExecutorEvent, DataProducing):
+class MockDataProducing(DataProducing, ExecutorEvent):
 
     def __init__(self):
-        super().__init__(data_coordinate_iterator=DataCoordinatesIterator.create(
+        super().__init__(data_coordinates_iterator=DataCoordinatesIterator.create(
             [{"time": 0}, {"time": 1}, {"time": 2}]))
         self.data_handler = MockDataHandler()
 
@@ -40,7 +41,7 @@ def mock_event():
 
 
 @pytest.fixture
-def execution_future(mock_event, mock_data_handler):
+def execution_future(mock_event):
     return ExecutionFuture(event=mock_event)
 
 
@@ -48,13 +49,21 @@ def test_notify_execution_complete(execution_future):
     """
     Test that the acquisition future is notified when the event is complete
     """
+
     def complete_event():
         time.sleep(0.1)
         execution_future._notify_execution_complete(None)
 
+    # print all active threads
+    for thread in threading.enumerate():
+        print(thread)
+
+    # print name of current thread
+    print('current ', threading.current_thread().name)
+
     thread = threading.Thread(target=complete_event)
     thread.start()
-    execution_future.await_execution()
+    execution_future.await_execution(timeout=5)
     assert execution_future._event_complete
 
 
@@ -77,7 +86,7 @@ def test_await_data(execution_future):
     metadata = {"some": "metadata"}
 
     def wait_and_notify():
-        # Delay so that the await_data call is made before the data is added it it gets held in RAM
+        # Delay so that the await_data call is made before the data is added it, it gets held in RAM
         # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
         execution_future._notify_data(coords, image, metadata)
@@ -96,7 +105,7 @@ def test_await_data_processed(execution_future):
     metadata = {"some": "metadata"}
 
     def wait_and_notify():
-        # Delay so that the await_data call is made before the data is added it it gets held in RAM
+        # Delay so that the await_data call is made before the data is added it, it gets held in RAM
         # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
         execution_future._notify_data(coords, image, metadata, processed=True)
@@ -114,7 +123,7 @@ def test_await_data_saved(execution_future):
     metadata = {"some": "metadata"}
 
     def wait_and_notify():
-        # Delay so that the await_data call is made before the data is added it it gets held in RAM
+        # Delay so that the await_data call is made before the data is added it, it gets held in RAM
         # rather than retrieved from the storage_backends by the data handler
         time.sleep(2)
         execution_future._notify_data(coords, image, metadata, stored=True)

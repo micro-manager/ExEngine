@@ -8,8 +8,8 @@ from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
 from backends.micromanager.mm_device_implementations import MicroManagerCamera
 from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
-from exengine.events.camera_events import (StartCapture, ReadoutImages,
-                                           StartContinuousCapture, StopCapture)
+from exengine.events.detector_events import (StartCapture, ReadoutData,
+                                             StartContinuousCapture, StopCapture)
 
 @pytest.fixture(scope="module")
 def setup_micromanager():
@@ -37,9 +37,9 @@ def capture_images(num_images, executor, camera):
     data_handler = DataHandler(storage=storage)
 
     start_capture_event = StartCapture(num_images=num_images, camera=camera)
-    readout_images_event = ReadoutImages(num_images=num_images, camera=camera,
-                                         image_coordinate_iterator=[DataCoordinates(time=t) for t in range(num_images)],
-                                         data_handler=data_handler)
+    readout_images_event = ReadoutData(num_images=num_images, camera=camera,
+                                       image_coordinate_iterator=[DataCoordinates(time=t) for t in range(num_images)],
+                                       data_handler=data_handler)
 
     executor.submit([start_capture_event, readout_images_event])
 
@@ -71,9 +71,9 @@ def test_continuous_capture(executor, camera):
     data_handler = DataHandler(storage=storage)
 
     start_capture_event = StartContinuousCapture(camera=camera)
-    readout_images_event = ReadoutImages(camera=camera,
-                                         image_coordinate_iterator=(DataCoordinates(time=t) for t in itertools.count()),
-                                         data_handler=data_handler)
+    readout_images_event = ReadoutData(camera=camera,
+                                       image_coordinate_iterator=(DataCoordinates(time=t) for t in itertools.count()),
+                                       data_handler=data_handler)
     stop_capture_event = StopCapture(camera=camera)
 
     _, readout_future, _ = executor.submit([start_capture_event, readout_images_event, stop_capture_event])

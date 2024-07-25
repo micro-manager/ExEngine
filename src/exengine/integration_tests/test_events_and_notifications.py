@@ -22,10 +22,13 @@ class YetAnotherTestNotification(Notification[float]):
     category = NotificationCategory.Device
     description = "Yet another test notification"
 
-@dataclass
 class NotificationEmittingEvent(ExecutorEvent):
     notification_types = [TestNotification, AnotherTestNotification, YetAnotherTestNotification]
-    notifications_to_emit: List[Notification]
+
+    def __init__(self, notifications_to_emit: List[Notification]):
+        super().__init__()
+        self.notifications_to_emit = notifications_to_emit
+
 
     def execute(self):
         for notification in self.notifications_to_emit:
@@ -36,6 +39,7 @@ class NotificationEmittingEvent(ExecutorEvent):
 def engine():
     engine = ExecutionEngine()
     yield engine
+    engine.shutdown()
 
 def test_subscribe_with_notification_type_filter(engine):
     received_notifications = []
