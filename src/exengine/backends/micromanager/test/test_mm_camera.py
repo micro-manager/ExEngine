@@ -6,7 +6,7 @@ from mmpycorex import create_core_instance, terminate_core_instances, get_defaul
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
-from backends.micromanager.mm_device_implementations import MicroManagerCamera
+from exengine.backends.micromanager.mm_device_implementations import MicroManagerCamera
 from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
 from exengine.events.detector_events import (StartCapture, ReadoutData,
                                              StartContinuousCapture, StopCapture)
@@ -36,9 +36,9 @@ def capture_images(num_images, executor, camera):
     storage = NDRAMStorage()
     data_handler = DataHandler(storage=storage)
 
-    start_capture_event = StartCapture(num_images=num_images, camera=camera)
-    readout_images_event = ReadoutData(num_images=num_images, camera=camera,
-                                       image_coordinate_iterator=[DataCoordinates(time=t) for t in range(num_images)],
+    start_capture_event = StartCapture(num_images=num_images, detector=camera)
+    readout_images_event = ReadoutData(num_images=num_images, detector=camera,
+                                       data_coordinates_iterator=[DataCoordinates(time=t) for t in range(num_images)],
                                        data_handler=data_handler)
 
     executor.submit([start_capture_event, readout_images_event])
@@ -71,8 +71,8 @@ def test_continuous_capture(executor, camera):
     data_handler = DataHandler(storage=storage)
 
     start_capture_event = StartContinuousCapture(camera=camera)
-    readout_images_event = ReadoutData(camera=camera,
-                                       image_coordinate_iterator=(DataCoordinates(time=t) for t in itertools.count()),
+    readout_images_event = ReadoutData(detector=camera,
+                                       data_coordinates_iterator=(DataCoordinates(time=t) for t in itertools.count()),
                                        data_handler=data_handler)
     stop_capture_event = StopCapture(camera=camera)
 

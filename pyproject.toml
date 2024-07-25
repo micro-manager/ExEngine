@@ -12,6 +12,7 @@ classifiers = [
     ]
 dependencies = [
 "mmpycorex",
+"ndstorage",
 "pydantic"
 ]
 dynamic = ["version"]
