@@ -20,16 +20,6 @@ def install_mm():
         # Download an install latest nightly build
         mm_install_dir = download_and_install_mm(destination='auto')
 
-        #### Replace with newer versions of Java libraries ####
-        # find pycro-manager/java path
-        if os.path.isdir('java'):
-            java_path = os.path.abspath('java')
-        # in case cwd is '/pycromanager/test'
-        elif os.path.isdir('../../java'):
-            java_path = os.path.abspath('../../java')
-        else:
-            raise RuntimeError('Could not find pycro-manager/java path')
-
         yield mm_install_dir
 
 
