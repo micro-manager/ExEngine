@@ -50,7 +50,10 @@ def mock_data_storage():
 
 @pytest.fixture
 def data_handler(mock_data_storage, mock_execution_engine):
-    return DataHandler(mock_data_storage, _executor=mock_execution_engine)
+    dh = DataHandler(mock_data_storage, _executor=mock_execution_engine)
+    yield dh
+    dh.finish()
+
 
 
 def test_data_handler_put_and_get(data_handler):
@@ -68,7 +71,7 @@ def test_data_handler_put_and_get(data_handler):
     assert retrieved_metadata == metadata
 
 
-def test_data_handler_processing_function(data_handler, mock_data_storage):
+def test_data_handler_processing_function(mock_data_storage):
     """
     Test that DataHandler can process data using a provided processing function, and that
     data_handler.get() returns the processed data not the original data.
@@ -97,6 +100,8 @@ def test_data_handler_processing_function(data_handler, mock_data_storage):
     assert np.array_equal(retrieved_image, image * 2)
     assert retrieved_metadata == metadata
 
+    handler_with_processing.finish()
+
 
 def test_data_handler_shutdown(data_handler, mock_data_storage):
     """
@@ -106,6 +111,7 @@ def test_data_handler_shutdown(data_handler, mock_data_storage):
     data_handler.await_completion()
 
     assert mock_data_storage.finished
+
 def test_data_handler_with_acquisition_future(data_handler):
     """
     Test that DataHandler interacts correctly with AcquisitionFuture.
