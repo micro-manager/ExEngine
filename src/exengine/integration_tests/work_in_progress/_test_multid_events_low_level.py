@@ -24,31 +24,19 @@ from exengine.events.detector_events import StartCapture, ReadoutData
 
 
 @pytest.fixture(scope="module")
-def setup_micromanager():
-    mm_install_dir = get_default_install_location()
-    config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
-    create_core_instance(mm_install_dir, config_file,
-                   buffer_size_mb=1024, max_memory_mb=1024,
-                   python_backend=True,
-                   debug=False)
-    yield
-    terminate_core_instances()
-
-
-@pytest.fixture(scope="module")
 def execution_engine():
     return ExecutionEngine()
 
 
 @pytest.fixture(scope="module")
-def devices():
+def devices(launch_micromanager):
     z_device = MicroManagerSingleAxisStage('Z')
     camera_device = MicroManagerCamera()
     xy_device = MicroManagerXYStage()
     return z_device, camera_device, xy_device
 
 
-def test_non_sequenced_z_stack(setup_micromanager, execution_engine, devices):
+def test_non_sequenced_z_stack(execution_engine, devices):
     z_device, camera_device, _ = devices
     storage = NDRAMStorage()
     data_handler = DataHandler(storage)
@@ -68,7 +56,7 @@ def test_non_sequenced_z_stack(setup_micromanager, execution_engine, devices):
     data_handler.finish()
 
 
-def test_sequenced_z_stack(setup_micromanager, execution_engine, devices):
+def test_sequenced_z_stack(execution_engine, devices):
     z_device, camera_device, _ = devices
     storage = NDRAMStorage()
     data_handler = DataHandler(storage)
@@ -94,7 +82,7 @@ def test_sequenced_z_stack(setup_micromanager, execution_engine, devices):
     assert all(means)
 
 
-def test_sequence_over_channels(setup_micromanager, execution_engine, devices):
+def test_sequence_over_channels(execution_engine, devices):
     _, camera_device, _ = devices
     storage = NDRAMStorage()
     data_handler = DataHandler(storage)
