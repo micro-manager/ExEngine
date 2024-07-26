@@ -12,27 +12,17 @@ from exengine.events.detector_events import (StartCapture, ReadoutData,
                                              StartContinuousCapture, StopCapture)
 
 @pytest.fixture(scope="module")
-def setup_micromanager():
-    mm_install_dir = get_default_install_location()
-    config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
-    create_core_instance(mm_install_dir, config_file,
-                   buffer_size_mb=1024, max_memory_mb=1024,  # set these low for github actions
-                   python_backend=True,
-                   debug=False)
-    yield
-    terminate_core_instances()
-
-@pytest.fixture(scope="module")
 def executor():
     executor = ExecutionEngine()
     yield executor
     executor.shutdown()
 
 @pytest.fixture
-def camera():
+def camera(launch_micromanager):
     return MicroManagerCamera()
 
 def capture_images(num_images, executor, camera):
+    # TODO: Replace this with a mock storage class
     storage = NDRAMStorage()
     data_handler = DataHandler(storage=storage)
 
@@ -48,24 +38,24 @@ def capture_images(num_images, executor, camera):
 
     data_handler.finish()
 
-@pytest.mark.usefixtures("setup_micromanager")
+@pytest.mark.usefixtures("launch_micromanager")
 def test_finite_sequence(executor, camera):
     capture_images(100, executor, camera)
     print('Finished first one')
 
-@pytest.mark.usefixtures("setup_micromanager")
+@pytest.mark.usefixtures("launch_micromanager")
 def test_single_image(executor, camera):
     capture_images(1, executor, camera)
     print('Finished single image')
 
-@pytest.mark.usefixtures("setup_micromanager")
+@pytest.mark.usefixtures("launch_micromanager")
 def test_multiple_single_image_captures(executor, camera):
     for _ in range(5):
         capture_images(1, executor, camera)
     print('Finished multiple single image captures')
 
 
-@pytest.mark.usefixtures("setup_micromanager")
+@pytest.mark.usefixtures("launch_micromanager")
 def test_continuous_capture(executor, camera):
     storage = NDRAMStorage()
     data_handler = DataHandler(storage=storage)
