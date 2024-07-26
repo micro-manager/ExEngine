@@ -9,16 +9,6 @@ from exengine.kernel.executor import ExecutionEngine
 from exengine.backends.micromanager.mm_device_implementations import MicroManagerDevice
 
 
-@pytest.fixture(scope="module")
-def setup_micromanager():
-    mm_install_dir = get_default_install_location()
-    config_file = os.path.join(mm_install_dir, 'MMConfig_demo.cfg')
-    create_core_instance(mm_install_dir, config_file,
-                   buffer_size_mb=1024, max_memory_mb=1024,  # set these low for github actions
-                   python_backend=True,
-                   debug=False)
-    yield
-    terminate_core_instances()
 
 @pytest.fixture(scope="module")
 def executor():
@@ -27,12 +17,7 @@ def executor():
     executor.shutdown()
 
 @pytest.fixture(scope="module")
-def core(setup_micromanager):
-    return Core()
-
-
-@pytest.fixture(scope="module")
-def device(core, executor):
+def device(launch_micromanager, executor):
     return MicroManagerDevice("Camera")
 
 
@@ -123,7 +108,7 @@ def test_stop_triggerable_sequence(device):
 
 # Additional test for a sequenceable property (using the Objective device)
 @pytest.fixture(scope="module")
-def objective_device(core, executor):
+def objective_device(launch_micromanager, executor):
     return MicroManagerDevice("Objective")
 
 def test_is_property_hardware_triggerable(objective_device):
