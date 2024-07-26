@@ -11,16 +11,27 @@ classifiers = [
     "Operating System :: OS Independent"
     ]
 dependencies = [
-"mmpycorex",
-"ndstorage",
 "pydantic"
 ]
+
 dynamic = ["version"]
 description = "Microscopy execution engine with support for multiple hardware backends"
 readme = "README.md"
 
 [project.optional-dependencies]
-test = ["pytest"]  # New test dependencies group
+test = ["pytest"]  
+
+# all backends
+all = [
+    "mmpycorex",
+    "ndstorage"
+    ]
+
+# device backends
+micromanager = ["mmpycorex"]
+
+# storage backends
+ndstorage = ["ndstorage"]
 
 
 [project.urls]
