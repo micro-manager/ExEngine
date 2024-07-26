@@ -23,9 +23,9 @@ z_stage = MicroManagerSingleAxisStage()
 num_images = 100
 data_handler = DataHandler(storage=NDRAMStorage())
 
-start_capture_event = StartCapture(num_images=num_images, camera=camera)
-readout_images_event = ReadoutData(num_images=num_images, camera=camera,
-                                   data_coordinate_iterator=[DataCoordinates(time=t) for t in range(num_images)],
+start_capture_event = StartCapture(num_images=num_images, detector=camera)
+readout_images_event = ReadoutData(num_images=num_images, detector=camera,
+                                   data_coordinates_iterator=[DataCoordinates(time=t) for t in range(num_images)],
                                    data_handler=data_handler)
 executor.submit(start_capture_event)
 future = executor.submit(readout_images_event)
@@ -34,6 +34,8 @@ future.await_execution()
 executor.check_exceptions()
 
 data_handler.finish()
+
+
 
 executor.shutdown()
 terminate_core_instances()
