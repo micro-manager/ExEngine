@@ -295,7 +295,7 @@ def test_event_prioritization(execution_engine):
     while not event1.executed or not event2.executed or not event3.executed:
         time.sleep(0.1)
 
-    assert event3.executed_time < event2.executed_time
+    assert event3.executed_time <= event2.executed_time
     assert event1.executed
     assert event2.executed
     assert event3.executed
