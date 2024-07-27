@@ -13,7 +13,7 @@ build:
 
 
 # Optionally specify the Python version used by Read the Docs
-python:
-  version: 3.10
-  install:
-    - requirements: docs/requirements.txt
+# python:
+#   version: 3.10
+#   install:
+#     - requirements: docs/requirements.txt
