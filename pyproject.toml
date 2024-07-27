@@ -33,6 +33,8 @@ micromanager = ["mmpycorex"]
 # storage backends
 ndstorage = ["ndstorage"]
 
+# documentation
+docs = ["sphinx"]
 
 [project.urls]
 Home = "https://github.com/micro-manager/ExEngine"
