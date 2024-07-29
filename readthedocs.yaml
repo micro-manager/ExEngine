@@ -4,7 +4,6 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
-
 # Specify the OS and Python version used by Read the Docs
 build:
   os: ubuntu-20.04
