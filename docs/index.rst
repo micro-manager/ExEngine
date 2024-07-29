@@ -1,17 +1,20 @@
-.. ExEngine documentation master file, created by
-   sphinx-quickstart on Sat Jul 27 07:24:24 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+#####################################################
+ExEngine: An execution engine for microscope control
+#####################################################
 
-ExEngine documentation
-======================
+.. toggle:: Click to expand
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+    This is the collapsible content. It is hidden by default, until the toggle button is clicked.
+
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
+   motivation
+   overview
+   setup
+   usage
+   extending
+   examples
