@@ -4,64 +4,51 @@
 Usage
 ######
 
+
+
+
+Installation and setup
+========================
+
+
+TODO
+
+
+Key features
+=============
+
 ExEngine is built around four key abstractions: Devices, Events, Futures, and Notifications.
 
-Devices
-=======
-Devices in ExEngine are software representations of hardware components in a microscope system. When possible, they provide a consistent way to interact with diverse equipment, abstracting away the complexities of individual hardware implementations. When not possible, devices can additionally expose specialized APIs specific to individual components.
 
-ExEngine supports multiple **backends** - individual devices or libraries of devices (e.g., Micro-Manager). The method to create devices depends on the specific backend in use.
-
-
-Here's a minimal example using the Micro-Manager backend:
-
-.. code-block:: python
-
-   from mmpycorex import create_core_instance
-   from exengine.kernel.executor import ExecutionEngine
-   from exengine.backends.micromanager.mm_device_implementations import MicroManagerSingleAxisStage
-
-   # Create the ExecutionEngine
-   executor = ExecutionEngine()
-
-   # Initialize Micro-Manager core
-   create_core_instance(config_file='MMConfig_demo.cfg')
-
-   # Access Micro-Manager device
-   z_stage = MicroManagerSingleAxisStage()
-
-   z_stage.set_position(1234.56)
+* :ref:`Devices <devices>`: Hardware components that can be controlled, such as cameras, stages, or light sources.
+* :ref:`Events <events>`: Encapsulated units of work that represent actions to be executed, ranging from simple actions like moving a stage or capturing an image to complex ones like running an autofocus routine.
+* :ref:`Futures <futures>`: Objects that represent the result of asynchronous operations, allowing for management and retrieval of event outcomes.
+* :ref:`Notifications <notifications>`: Asynchronous messages that provide real-time updates on system status and progress.
 
 
-Device Hierarchies
-""""""""""""""""""
+.. raw:: html
 
-Devices in ExEngine exist in hierarchies. All devices must inherit from the exengine.Device base class. Further functionality can be standardized by inheriting from one or more specific device type classes. For example, ``MicroManagerSingleAxisStage`` is a subclass of ``exengine.SingleAxisPositioner``, which is itself a subclass of ``exengine.Device``.
-
-The advantage of this hierarchical structure is that it standardizes functionality, allowing code to be written for generic device types (e.g., a single axis positioner) that will work with many different device libraries. This approach enables a common API across different libraries of devices, similar to Micro-Manager's device abstraction layer but on a meta-level - spanning multiple device ecosystems rather than just devices within a single project. However, ExEngine's device system is designed to be adaptable. While adhering to the standardized interfaces offers the most benefits, users can still leverage many advantages of the system without implementing these specialized APIs.
-
-
-TODO: thread standardization features of devices (and how to turn off)
-
-TODO: calling functions on devices directly
-
-TODO: link to guide to adding backends
-
-TODO: transition to more complex with events
+    <div style="text-align: center; max-width: 100%;">
+        <object type="image/svg+xml" data="_static/exengine_arch.svg" style="width: 100%; height: auto;"></object>
+        <p style="font-style: italic; font-size: 0.9em; color: #555;"><b>Overview of the main components of ExEngine:</b> Events are submitted to the Execution Engine, which handles their execution on one or more internal threads. Upon execution, events can control hardware devices and produce output data. Futures allow for the management and retrieval of the results of these asynchronous operations. Notifications are produced asynchronously, enabling user applications to monitor progress and system status updates in real-time.</p>
+    </div>
 
 
-Events
-======
-Events are modular units of instructions and or computation. They can be as simple as a single command like moving the position of a hardware device, or contain multiple steps and computation. They provide building blocks to create more complex experimental workflows.
 
 
-TODO: what else should be said about events?
+.. toctree::
+   :maxdepth: 1
+   :caption: Contents:
 
+   devices
+   events
+   futures
+   notifications
 
-Notifications
-=============
-Notifications provide a mechanism for asynchronous communication within the system. They allow devices, events, and other components to broadcast updates about their status or important occurrences. This feature enables reactive programming patterns, allowing your software to respond dynamically to changes in the system state or experimental conditions.
+Examples
+==========
+.. toctree::
+   :maxdepth: 1
+   :caption: Contents:
 
-Futures
-=======
-Futures represent the outcome of asynchronous operations. They provide a way to handle long-running tasks without blocking the main execution thread. Futures allow you to submit events for execution and then either wait for their completion or continue with other tasks, checking back later for results. This enables efficient, non-blocking execution of complex workflows.
+   examples

@@ -2,9 +2,6 @@
 ExEngine: An execution engine for microscope control
 #####################################################
 
-.. toggle:: Click to expand
-
-    This is the collapsible content. It is hidden by default, until the toggle button is clicked.
 
 
 
@@ -12,9 +9,6 @@ ExEngine: An execution engine for microscope control
    :maxdepth: 1
    :caption: Contents:
 
-   motivation
-   overview
-   setup
+   introduction
    usage
    extending
-   examples
