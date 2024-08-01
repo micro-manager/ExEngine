@@ -12,11 +12,12 @@ build:
   tools:
     python: "3.10"
   commands:
-    # Use LFS for figures
-    # - apt-get update
-    - apt-get install -y git-lfs
-    - git lfs install
-    - git lfs pull
+    - wget https://github.com/git-lfs/git-lfs/releases/download/v2.7.1/git-lfs-linux-amd64-v2.7.1.tar.gz
+    - tar xvfz git-lfs-linux-amd64-v2.7.1.tar.gz
+    - ./git-lfs install
+    - ./git-lfs fetch
+    - ./git-lfs checkout
+
 
 
 # Optionally specify the Python version used by Read the Docs
