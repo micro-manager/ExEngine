@@ -1,8 +1,17 @@
 version: 2
 
+# # The figures are stored with lfs
+# pre_build:
+#   - apt-get update
+#   - apt-get install -y git-lfs
+#   - git lfs install
+#   - git lfs pull
+
+
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
   configuration: docs/conf.py
+
 
 # Specify the OS and Python version used by Read the Docs
 build:
