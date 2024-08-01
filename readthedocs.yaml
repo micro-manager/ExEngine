@@ -13,7 +13,7 @@ build:
     python: "3.10"
   commands:
     # Use LFS for figures
-    - apt-get update
+    # - apt-get update
     - apt-get install -y git-lfs
     - git lfs install
     - git lfs pull
