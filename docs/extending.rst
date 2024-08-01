@@ -1,11 +1,10 @@
 .. _extending:
 
-##############################
+==================
 Extending ExEngine
-##############################
+==================
 
 .. toctree::
-  :maxdepth: 1
-  
-  add_devices
+   :maxdepth: 2
 
+   extending/add_devices

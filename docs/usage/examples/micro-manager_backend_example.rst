@@ -7,14 +7,13 @@ Using ExEngine with Micro-Manager Backend
 Installation
 ------------
 
-1. Clone the repository
-2. Install ExEngine, specifying which device and data storage backends:
+1. Install ExEngine, including the `micromanager` and `ndstorage` backends:
 
    .. code-block:: bash
 
-      pip install -e ".[micromanager, ndstorage]"
+      pip install "exengine[micromanager, ndstorage]"
 
-3. Install Micro-Manager:
+2. Install Micro-Manager:
 
    .. code-block:: python
 

@@ -162,6 +162,7 @@ class Detector(Device):
         ...
 
     # TODO: perhaps this should be a seperate buffer class
+    # TODO: make this popdata
     @abstractmethod
     def pop_image(self, timeout=None) -> Tuple[np.ndarray, dict]:
         """
