@@ -1,5 +1,3 @@
 sphinx
 sphinx-rtd-theme
 sphinx-togglebutton
-
-git+https://github.com/git-lfs/git-lfs
