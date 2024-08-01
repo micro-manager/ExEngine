@@ -28,8 +28,6 @@ Key Features:
     </div>
 
 
-Welcome to ExEngine's documentation!
-====================================
 
 .. toctree::
    :maxdepth: 2
@@ -38,10 +36,3 @@ Welcome to ExEngine's documentation!
    design
    usage
    extending
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
