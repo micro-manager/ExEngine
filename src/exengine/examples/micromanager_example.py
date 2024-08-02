@@ -9,7 +9,7 @@ from exengine.events.detector_events import StartCapture, ReadoutData
 
 # download_and_install_mm()  # If needed
 # Start Micro-Manager core instance with Demo config
-create_core_instance(mm_app_path=, mm_config_path=)
+create_core_instance()
 
 executor = ExecutionEngine()
 
