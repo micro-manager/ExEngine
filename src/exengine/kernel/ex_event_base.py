@@ -1,20 +1,13 @@
 import warnings
-import numpy as np
 from typing import Optional, Any,ClassVar, Type, List, Dict, Union, Iterable
 from abc import ABC, abstractmethod, ABCMeta
 import weakref
-from dataclasses import dataclass, field
-from exengine.kernel.notification_base import Notification
-import itertools
+from .notification_base import Notification
 
-from typing import TYPE_CHECKING
-
-from exengine.kernel.notification_base import EventExecutedNotification
-from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
-from exengine.kernel.data_handler import DataHandler
+from .notification_base import EventExecutedNotification
 
 # if TYPE_CHECKING: # avoid circular imports
-from exengine.kernel.ex_future import ExecutionFuture
+from .ex_future import ExecutionFuture
 
 
 class _ExecutorEventMeta(ABCMeta):

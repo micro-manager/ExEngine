@@ -5,7 +5,7 @@ from abc import ABC
 from datetime import datetime
 from dataclasses import field
 import uuid
-from exengine.kernel.data_coords import DataCoordinates
+from .data_coords import DataCoordinates
 
 
 TNotificationPayload = TypeVar('TNotificationPayload')

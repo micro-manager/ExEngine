@@ -7,8 +7,8 @@ from typing import Any, Dict, Callable
 from weakref import WeakSet
 from dataclasses import dataclass
 
-from exengine.kernel.ex_event_base import ExecutorEvent
-from exengine.kernel.executor import ExecutionEngine
+from .ex_event_base import ExecutorEvent
+from .executor import ExecutionEngine
 import threading
 import sys
 

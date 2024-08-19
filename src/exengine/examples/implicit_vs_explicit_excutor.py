@@ -13,10 +13,14 @@ z_stage = MicroManagerSingleAxisStage()
 
 # This occurs on the executor thread. The event is submitted to the executor and its result is awaited,
 # meaning the call will block until the method is executed.
-z_stage.set_position(100)
+z_stage.set_position(100, thread='device_setting_thread')
 # it is equivalent to:
 executor.submit(SetPosition1DEvent(position=100, device=z_stage)).await_execution()
 
+
+
+executor.submit(SetPosition1DEvent(position=100, device=z_stage), thread='device_setting_thread')
+executor.submit(ReadoutImages(), thread='readout_thread')
 
 
 

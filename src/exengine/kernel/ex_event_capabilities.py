@@ -8,8 +8,8 @@ import itertools
 import numpy as np
 import warnings
 
-from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
-from exengine.kernel.data_handler import DataHandler
+from .data_coords import DataCoordinates, DataCoordinatesIterator
+from .data_handler import DataHandler
 
 
 

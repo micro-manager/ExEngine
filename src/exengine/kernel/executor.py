@@ -9,11 +9,11 @@ import traceback
 from typing import Union, Iterable, List, Callable, Any, Type
 import queue
 
-from exengine.kernel.notification_base import Notification, NotificationCategory
-from exengine.kernel.ex_event_base import ExecutorEvent
-from exengine.kernel.ex_future import ExecutionFuture
+from .notification_base import Notification, NotificationCategory
+from .ex_event_base import ExecutorEvent
+from .ex_future import ExecutionFuture
 
-from exengine.kernel.data_handler import DataHandler
+from .data_handler import DataHandler
 
 
 class MultipleExceptions(Exception):
@@ -225,10 +225,10 @@ class ExecutionEngine:
         - 'use_free_thread' is essential for operations that need to run independently, like cancellation events.
         """
 
-        global ExecutorEvent
-        if isinstance(ExecutorEvent, str):
-            # runtime import to avoid circular imports
-            from exengine.kernel.ex_event_base import ExecutorEvent
+        # global ExecutorEvent
+        # if isinstance(ExecutorEvent, str):
+        #     # runtime import to avoid circular imports
+        #     from .ex_event_base import ExecutorEvent
         if isinstance(event_or_events, ExecutorEvent):
             event_or_events = [event_or_events]
 

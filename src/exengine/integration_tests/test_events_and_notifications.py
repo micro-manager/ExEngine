@@ -2,7 +2,7 @@
 Integration tests for events, notifications, futures, and the execution engine
 """
 import pytest
-from exengine.kernel.executor import ExecutionEngine
+from exengine import ExecutionEngine
 from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.kernel.notification_base import Notification, NotificationCategory
 from dataclasses import dataclass

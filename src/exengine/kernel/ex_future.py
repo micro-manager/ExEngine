@@ -1,8 +1,8 @@
 from typing import Union, Optional, Any, Dict, Tuple, Sequence, Set, TypeVar, Type, Iterable
 import threading
 import warnings
-from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
-from exengine.kernel.notification_base import Notification
+from .data_coords import DataCoordinates, DataCoordinatesIterator
+from .notification_base import Notification
 import numpy as np
 from dataclasses import field
 
@@ -10,7 +10,7 @@ from dataclasses import field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING: # avoid circular imports
-    from exengine.kernel.ex_event_base import ExecutorEvent
+    from .ex_event_base import ExecutorEvent
 
 
 class ExecutionFuture:
