@@ -5,14 +5,14 @@ import numpy as np
 from pydantic.types import JsonValue
 from dataclasses import dataclass
 
-from exengine.kernel.notification_base import DataStoredNotification
-from exengine.kernel.data_coords import DataCoordinates
-from exengine.kernel.data_storage_api import DataStorageAPI
+from .notification_base import DataStoredNotification
+from .data_coords import DataCoordinates
+from .data_storage_api import DataStorageAPI
 from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from exengine.kernel.ex_future import ExecutionFuture
+    from .ex_future import ExecutionFuture
 
 
 class _PeekableQueue(queue.Queue):
@@ -56,7 +56,7 @@ class DataHandler:
                  _executor=None):
         # delayed import to avoid circular imports
         if _executor is None:
-            from exengine.kernel.executor import ExecutionEngine
+            from .executor import ExecutionEngine
             self._engine = ExecutionEngine.get_instance()
         else:
             self._engine = _executor

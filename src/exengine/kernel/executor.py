@@ -9,11 +9,10 @@ import traceback
 from typing import Union, Iterable, List, Callable, Any, Type
 import queue
 
-from exengine.kernel.notification_base import Notification, NotificationCategory
-from exengine.kernel.ex_event_base import ExecutorEvent
-from exengine.kernel.ex_future import ExecutionFuture
+from .notification_base import Notification, NotificationCategory
+from .ex_future import ExecutionFuture
 
-from exengine.kernel.data_handler import DataHandler
+from .data_handler import DataHandler
 
 
 class MultipleExceptions(Exception):
@@ -176,7 +175,7 @@ class ExecutionEngine:
             else:
                 raise MultipleExceptions(exceptions)
 
-    def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent]],
+    def submit(self, event_or_events: Union["ExecutorEvent", Iterable["ExecutorEvent"]],
                transpile: bool = True, prioritize: bool = False, use_free_thread: bool = False,
                data_handler: DataHandler = None) -> Union[ExecutionFuture, Iterable[ExecutionFuture]]:
         """
@@ -228,7 +227,7 @@ class ExecutionEngine:
         global ExecutorEvent
         if isinstance(ExecutorEvent, str):
             # runtime import to avoid circular imports
-            from exengine.kernel.ex_event_base import ExecutorEvent
+            from .ex_event_base import ExecutorEvent
         if isinstance(event_or_events, ExecutorEvent):
             event_or_events = [event_or_events]
 
@@ -242,7 +241,7 @@ class ExecutionEngine:
             return futures[0]
         return futures
 
-    def _submit_single_event(self, event: ExecutorEvent, use_free_thread: bool = False, prioritize: bool = False):
+    def _submit_single_event(self, event: "ExecutorEvent", use_free_thread: bool = False, prioritize: bool = False):
         """
         Submit a single event for execution
         """
@@ -293,7 +292,7 @@ class _ExecutionThreadManager:
     or events in its queue with the is_free method.
 
     """
-    _deque: Deque[ExecutorEvent]
+    _deque: Deque["ExecutorEvent"]
     thread: threading.Thread
 
     def __init__(self, name='UnnamedExectorThread'):

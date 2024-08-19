@@ -5,8 +5,7 @@ Base classes for device_implementations that can be used by the execution engine
 from abc import abstractmethod, ABC
 from typing import Tuple, List, Iterable, Union, Optional, Sequence
 import numpy as np
-from exengine.kernel.device import DeviceMetaclass
-
+from .device import DeviceMetaclass
 
 
 class Device(ABC, metaclass=DeviceMetaclass):

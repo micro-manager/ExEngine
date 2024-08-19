@@ -3,7 +3,7 @@ Protocol for storage_backends class that acquisitions ultimate write to where th
 """
 
 from typing import Protocol, runtime_checkable, Union, Dict
-from exengine.kernel.data_coords import DataCoordinates
+from .data_coords import DataCoordinates
 import numpy as np
 from pydantic.types import JsonValue
 
