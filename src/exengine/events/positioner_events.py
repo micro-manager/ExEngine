@@ -1,10 +1,9 @@
 from typing import List, Union, Tuple, Optional, SupportsFloat
 import numpy as np
-from dataclasses import dataclass
 
 from exengine.kernel.ex_event_base import ExecutorEvent
-from exengine.kernel.device_types_base import (DoubleAxisPositioner, SingleAxisPositioner,
-                                                    TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
+from device_types import (DoubleAxisPositioner, SingleAxisPositioner,
+                          TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
 
 
 class SetPosition2DEvent(ExecutorEvent):

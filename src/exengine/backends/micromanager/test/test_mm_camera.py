@@ -27,7 +27,7 @@ def capture_images(num_images, executor, camera):
     data_handler = DataHandler(storage=storage)
 
     start_capture_event = StartCapture(num_images=num_images, detector=camera)
-    readout_images_event = ReadoutData(num_images=num_images, detector=camera,
+    readout_images_event = ReadoutData(number=num_images, detector=camera,
                                        data_coordinates_iterator=[DataCoordinates(time=t) for t in range(num_images)],
                                        data_handler=data_handler)
 

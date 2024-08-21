@@ -11,7 +11,7 @@ To install ExEngine with all available backends, use pip:
 
    pip install "exengine[all]"
 
-The `[all]` option installs ExEngine with all available device and storage backend dependencies.
+The ``[all]`` option installs ExEngine with all available device and storage backend dependencies.
 
 Alternatively, if you only want to install specific backends, you can use:
 

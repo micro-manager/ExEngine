@@ -27,7 +27,7 @@ storage = NDRAMStorage()
 data_handler = DataHandler(storage=storage)
 
 start_capture_event = StartCapture(num_images=num_images, camera=camera)
-readout_images_event = ReadoutData(num_images=num_images, camera=camera,
+readout_images_event = ReadoutData(number=num_images, camera=camera,
                                    data_coordinate_iterator=[DataCoordinates(time=t) for t in range(num_images)],
                                    data_handler=data_handler)
 executor.submit(start_capture_event)

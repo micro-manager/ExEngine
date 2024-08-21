@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
-from exengine.kernel.device_types_base import Device
+from kernel.device import Device
+
 
 @pytest.fixture
 def mock_device():

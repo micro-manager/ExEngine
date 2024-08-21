@@ -13,7 +13,7 @@ All new devices should inherit from the ``Device`` base class or one or more of 
 
 .. code-block:: python
 
-   from exengine.kernel.device_types_base import Device
+   from exengine.base_classes import Device
 
    class ANewDevice(Device):
        def __init__(self, name):
@@ -64,7 +64,7 @@ Specialized device types implement functionality through abstract methods that m
 
 .. code-block:: python
 
-   from exengine.kernel.device_types_base import Detector
+   from exengine.device_types import Detector
 
    # TODO: may change this API in the future
    class ANewCameraDevice(Detector):

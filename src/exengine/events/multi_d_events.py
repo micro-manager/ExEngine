@@ -1,13 +1,10 @@
-from exengine.events.positioner_events import SetPosition2DEvent, SetPosition1DEvent
+from exengine.events.positioner_events import SetPosition2DEvent
 from exengine.events.detector_events import StartCapture, ReadoutData
-from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.events.misc_events import SetTimeEvent
-from exengine.kernel.device_types_base import SingleAxisPositioner, DoubleAxisPositioner, Detector
+from device_types import SingleAxisPositioner, Detector
 from exengine.kernel.data_coords import DataCoordinates
-from exengine.events.property_events import (SetTriggerablePropertySequencesEvent,
-                                             SetPropertiesEvent)
+from exengine.events.property_events import (SetPropertiesEvent)
 from exengine.events.positioner_events import SetTriggerable1DPositionsEvent, SetPosition1DEvent
-from exengine.backends.micromanager.mm_utils import read_mm_config_groups
 from typing import Union, List, Iterable, Optional
 import numpy as np
 import copy
@@ -168,7 +165,7 @@ def multi_d_acquisition_events(
 
             new_event_list.append(ReadoutData(
                 detector=camera,
-                num_images=total_sequence_length,
+                number=total_sequence_length,
                 data_coordinates_iterator=coords_iterator
             ))
 
@@ -223,7 +220,7 @@ def multi_d_acquisition_events(
             # Non-sequenced case: Add StartCapture and ReadoutImages events
             num_images = 1
             event_set.append(StartCapture(detector=camera, num_images=num_images))
-            event_set.append(ReadoutData(detector=camera, num_images=num_images,
+            event_set.append(ReadoutData(detector=camera, number=num_images,
                                          data_coordinates_iterator=[DataCoordinates(**coords)]))
 
         final_events.append(event_set)
