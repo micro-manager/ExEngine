@@ -170,6 +170,8 @@ Some events are capable of generating data during their execution. For these eve
 
 This method allows you to wait for specific data to be produced and optionally retrieve both the data and its associated metadata.
 
+``DataProducing`` events must have an associated :ref:`DataCoordinatesIterator <data_coordinates_iterator>` so that the data produced can be uniquely identified, and a :ref:`DataHandler <data_handler>` so that it knows where to send the data.
+
 Stoppable Events
 ^^^^^^^^^^^^^^^^
 

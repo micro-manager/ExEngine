@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
 from exengine.kernel.data_coords import DataCoordinates
-from exengine.storage_backends.NDTiffandRAM import NDRAMStorage, NDTiffStorage
-from exengine.kernel.data_storage_api import DataStorageAPI
+from storage_backends.ndtiff_and_ndram.NDTiffandRAM import NDRAMStorage, NDTiffStorage
+from exengine.kernel.data_storage_base import DataStorage
 
 @pytest.fixture(params=["tiff", "ram"])
 def data_storage(request, tmp_path):
@@ -12,7 +12,7 @@ def data_storage(request, tmp_path):
         return NDRAMStorage()
 
 def test_fully_implements_protocol(data_storage):
-    assert isinstance(data_storage, DataStorageAPI), "NDStorage does not fully implement DataStorageAPI"
+    assert isinstance(data_storage, DataStorage), "NDStorage does not fully implement DataStorageAPI"
 
 def test_contains_integration(data_storage):
     data_coordinates = DataCoordinates(coordinate_dict={"time": 1, "channel": "DAPI", "z": 0})

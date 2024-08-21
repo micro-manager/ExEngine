@@ -2,13 +2,13 @@
 Adapters for NDTiff and NDRam storage_backends classes
 """
 from typing import Union, Dict
-from exengine.kernel.data_storage_api import DataStorageAPI
+from exengine.kernel.data_storage_base import DataStorage
 from exengine.kernel.data_coords import DataCoordinates
 from ndstorage import NDRAMDataset, NDTiffDataset
 import numpy as np
 from pydantic.types import JsonValue
 
-class _NDRAMOrTiffStorage(DataStorageAPI):
+class _NDRAMOrTiffStorage(DataStorage):
     """
     Wrapper class for NDTiffDataset and NDRAMDataset to implement the DataStorageAPI protocol
     """

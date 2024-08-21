@@ -1,7 +1,8 @@
 .. _add_notifications:
 
+==============================
 Creating Custom Notifications
-------------------------------
+==============================
 
 To create a custom notification:
 

@@ -4,7 +4,7 @@ from exengine.backends.micromanager.mm_device_implementations import MicroManage
 import os
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.ex_event_base import DataHandler
-from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
+from storage_backends.ndtiff_and_ndram.NDTiffandRAM import NDRAMStorage
 from exengine.events.detector_events import StartCapture, ReadoutData
 
 mm_install_dir = get_default_install_location()

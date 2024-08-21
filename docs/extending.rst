@@ -10,3 +10,4 @@ Extending ExEngine
    extending/add_devices
    extending/add_events
    extending/add_notifications
+   extending/add_storage

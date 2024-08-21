@@ -3,7 +3,7 @@ import os
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.ex_event_base import DataHandler
 from exengine.backends.micromanager.mm_device_implementations import MicroManagerCamera
-from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
+from storage_backends.ndtiff_and_ndram.NDTiffandRAM import NDRAMStorage
 from exengine.events.detector_events import StartCapture, ReadoutData
 from mmpycorex import create_core_instance, terminate_core_instances, get_default_install_location
 

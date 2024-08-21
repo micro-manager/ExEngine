@@ -12,7 +12,7 @@ from exengine.backends.micromanager.mm_device_implementations import (
 )
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
-from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
+from storage_backends.ndtiff_and_ndram.NDTiffandRAM import NDRAMStorage
 from exengine.events.positioner_events import (
     SetPosition1DEvent, SetTriggerable1DPositionsEvent, StopTriggerablePositionSequenceEvent
 )

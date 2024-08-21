@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from .notification_base import DataStoredNotification
 from .data_coords import DataCoordinates
-from .data_storage_api import DataStorageAPI
+from .data_storage_base import DataStorage
 from typing import TYPE_CHECKING
 
 
@@ -49,7 +49,7 @@ class DataHandler:
     # This class must create at least one additional thread (the saving thread)
     # and may create another for processing data
 
-    def __init__(self, storage: DataStorageAPI,
+    def __init__(self, storage: DataStorage,
                  process_function: Callable[[DataCoordinates, np.ndarray, JsonValue],
                                 Optional[Union[DataCoordinates, np.ndarray, JsonValue,
                                                Tuple[DataCoordinates, np.ndarray, JsonValue]]]] = None,
@@ -206,7 +206,7 @@ class DataHandler:
     def put(self, coordinates: Any, image: np.ndarray, metadata: Dict, execution_future: Optional["ExecutionFuture"]):
         """
         Hand off this image to the data handler. It will handle handoff to the storage_backends object and image processing
-        if requested, as well as providing temporary access to the image and metadata as it passes throught this
+        if requested, as well as providing temporary access to the image and metadata as it passes through this
         pipeline. If an acquisition future is provided, it will be notified when the image arrives, is processed, and
         is stored.
         """

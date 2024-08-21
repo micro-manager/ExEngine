@@ -13,7 +13,7 @@ def test_import_engine():
 def test_import_base_classes():
     try:
         from exengine.base_classes import (Notification, ExecutorEvent, NotificationCategory, Abortable,
-                                           DataProducing, Stoppable)
+                                           DataProducing, Stoppable, DataStorage)
     except ImportError as e:
         pytest.fail(f"Import failed for base_classes: {e}")
 
@@ -22,6 +22,12 @@ def test_import_notifications():
         from exengine.notifications import NotificationCategory, DataStoredNotification, EventExecutedNotification
     except ImportError as e:
         pytest.fail(f"Import failed for notifications: {e}")
+
+def test_import_data():
+    try:
+        from exengine.data import DataCoordinates, DataCoordinatesIterator, DataHandler
+    except ImportError as e:
+        pytest.fail(f"Import failed for data: {e}")
 
 def test_mm_imports():
     try:
