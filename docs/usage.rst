@@ -9,4 +9,4 @@ Usage
 
    usage/installation
    usage/backends
-   usage/key_concepts
+   usage/key_features

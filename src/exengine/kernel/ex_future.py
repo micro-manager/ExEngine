@@ -109,27 +109,27 @@ class ExecutionFuture:
     ####################################################################################################################
 
     def await_data(self, coordinates: Optional[Union[DataCoordinates, Dict[str, Union[int, str]],
-                                               DataCoordinatesIterator, Sequence[DataCoordinates],
-                                               Sequence[Dict[str, Union[int, str]]]]],
+    DataCoordinatesIterator, Sequence[DataCoordinates],
+    Sequence[Dict[str, Union[int, str]]]]],
                    return_data: bool = False, return_metadata: bool = False,
                    processed: bool = False, stored: bool = False):
         """
         (Only for AcquisitionEvents that also inherit from DataProducing)
         Block until the event's data is acquired/processed/saved, and optionally return the data/metadata.
-        when waiting for the data to be acquired (i.e. before it is processed), since there is no way to guarantee that
+        When waiting for the data to be acquired (i.e. before it is processed), since there is no way to guarantee that
         this function is called before the data is acquired, the data may have already been saved and not readily
         available in RAM. In this case, the data will be read from disk.
 
         Args:
-            coordinates: A single DataCoordinates object/dictionary, or Sequence (i.e. list or tuple) of DataCoordinates
-             objects/dictionaries. If None, this function will block until the next data is acquired/processed/saved
+            coordinates: A single DataCoordinates object/dictionary, or Sequence (i.e. list or tuple) of
+            DataCoordinates objects/dictionaries. If None, this function will block until the next data is
+            acquired/processed/saved
             return_data: whether to return the data
             return_metadata: whether to return the metadata
-            processed: whether to wait until data has been processed. If not data processor is in use,
-                then this parameter has no effect
-            stored: whether to wait for data that has been stored. If the call to await data occurs before the
-              data gets passed off to the storage_backends class, then it will be stored in memory and returned immediately.
-              without having to retrieve
+            processed: whether to wait until data has been processed. If not data processor is in use, then this
+            parameter has no effect
+            stored: whether to wait for data that has been stored. If the call to await data occurs before the data
+            gets passed off to the storage_backends class, then it will be stored in memory and returned immediately without having to retrieve
         """
 
         coordinates_iterator = DataCoordinatesIterator.create(coordinates)

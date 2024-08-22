@@ -34,6 +34,7 @@ class Notification(ABC, Generic[TNotificationPayload]):
 
     @dataclass
     class DataAcquired(Notification[DataCoordinates]):
+
         # Define the category and description of the notification shared by all instances of this class
         category = NotificationCategory.Data
         description = "Data has been acquired by a camera or other data-producing device and is now available"

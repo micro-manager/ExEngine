@@ -191,7 +191,7 @@ class ExecutionEngine:
         - Priority execution can be requested using the 'prioritize' parameter.
 
         Parameters:
-        ----------
+        -----------
         event_or_events : Union[ExecutorEvent, Iterable[ExecutorEvent]]
             A single ExecutorEvent or an iterable of ExecutorEvents to be submitted.
 
@@ -212,14 +212,14 @@ class ExecutionEngine:
             Object to handle data and metadata produced by DataProducingExecutorEvents.
 
         Returns:
-        -------
+        --------
         Union[AcquisitionFuture, Iterable[AcquisitionFuture]]
             For a single event: returns a single AcquisitionFuture.
             For multiple events: returns an Iterable of AcquisitionFutures.
             Note: The number of returned futures may differ from the input if transpilation occurs.
 
         Notes:
-        -----
+        ------
         - Transpilation may optimize multiple events, potentially altering their number or structure.
         - Use 'prioritize' for critical system changes that should occur before other queued events.
         - 'use_free_thread' is essential for operations that need to run independently, like cancellation events.
