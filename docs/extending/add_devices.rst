@@ -27,6 +27,7 @@ When adding a new backend to ExEngine, follow this directory structure:
 
 Replace ``your_new_backend`` with an appropriate name for your backend.
 
+You may also want to edit the ``__init__.py`` file in the ``your_new_backend`` directory to import the Classes for each device you implement in the ``your_implementations.py`` or other files (see the micro-manager backend for an example of this).
 
 Additional dependencies
 ------------------------
@@ -178,7 +179,13 @@ Adding documentation
 2. Create a new RST file, e.g., ``docs/usage/backends/your_new_backend.rst``, describing how to use your backend.
 3. Update ``docs/usage/backends.rst`` to include your new backend documentation.
 
-To build the documentation locally, in the ``exengine/docs`` directory, run:
+To build the documentation locally, you may need to install the required dependencies. In the ``exengine/docs`` directory, run:
+
+.. code-block:: bash
+
+   pip install -r requirements.txt
+
+Then, to build, in the ``exengine/docs`` directory, run:
 
 .. code-block:: bash
 
@@ -186,11 +193,7 @@ To build the documentation locally, in the ``exengine/docs`` directory, run:
 
 then open ``_build/html/index.html`` in a web browser to view the documentation.
 
-If you are building the documentation for the first time, you may need to install the required dependencies. In the ``exengine/docs`` directory, run:
 
-.. code-block:: bash
-
-   pip install -r requirements.txt
 
 
 Advanced Topics

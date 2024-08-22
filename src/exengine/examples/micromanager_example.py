@@ -23,8 +23,8 @@ z_stage = MicroManagerSingleAxisStage()
 num_images = 100
 data_handler = DataHandler(storage=NDRAMStorage())
 
-start_capture_event = StartCapture(num_images=num_images, detector=camera)
-readout_images_event = ReadoutData(number=num_images, detector=camera,
+start_capture_event = StartCapture(num_blocks=num_images, detector=camera)
+readout_images_event = ReadoutData(num_blocks=num_images, detector=camera,
                                    data_coordinates_iterator=[DataCoordinates(time=t) for t in range(num_images)],
                                    data_handler=data_handler)
 executor.submit(start_capture_event)

@@ -35,3 +35,10 @@ def test_mm_imports():
                                                     MicroManagerSingleAxisStage, MicroManagerXYStage)
     except ImportError as e:
         pytest.fail(f"Import failed for MicroManagerDevice: {e}")
+
+
+def test_ndstorage_imports():
+    try:
+        from exengine.storage_backends.ndtiff_and_ndram import NDTiffStorage, NDRAMStorage
+    except ImportError as e:
+        pytest.fail(f"Import failed for MicroManagerDevice: {e}")

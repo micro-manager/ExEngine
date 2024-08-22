@@ -26,6 +26,8 @@ When adding a new storage backend to ExEngine, follow this directory structure:
 
 Replace ``your_new_storage`` with an appropriate name for your storage backend.
 
+You may also want to edit the ``__init__.py`` file in the ``your_new_storage`` directory to import the Class from your storage implementation file (see the NDStorage backend for an example of this).
+
 Additional Dependencies
 -----------------------
 
@@ -131,13 +133,20 @@ Adding Documentation
 --------------------
 
 1. Add documentation for your new storage backend in the ``docs/`` directory.
-2. Create a new RST file, e.g., ``docs/usage/storage_backends/your_new_storage.rst``, describing how to use your storage backend.
-3. Update ``docs/usage/storage_backends.rst`` to include your new storage backend documentation.
+2. Create a new RST file, e.g., ``docs/usage/backends/your_new_storage.rst``, describing how to use your storage backend.
+3. Update ``docs/usage/backends.rst`` to include your new storage backend documentation.
 
-To build the documentation locally, in the ``exengine/docs`` directory, run:
+To build the documentation locally, you may need to install the required dependencies. In the ``exengine/docs`` directory, run:
+
+.. code-block:: bash
+
+   pip install -r requirements.txt
+
+Then, to build, in the ``exengine/docs`` directory, run:
 
 .. code-block:: bash
 
    make clean && make html
 
 then open ``_build/html/index.html`` in a web browser to view the documentation.
+

@@ -8,5 +8,5 @@ Usage
    :maxdepth: 2
 
    usage/installation
-   usage/key_concepts
    usage/backends
+   usage/key_concepts
