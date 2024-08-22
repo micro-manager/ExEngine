@@ -149,7 +149,7 @@ def multi_d_acquisition_events(
                 # ))
 
             # Add StartCapture event
-            new_event_list.append(StartCapture(detector=camera, num_images=total_sequence_length))
+            new_event_list.append(StartCapture(detector=camera, num_blocks=total_sequence_length))
 
             # Create data coordinates for ReadoutImages
             axes_names = {"t": "time", "z": "z", "c": "channel", "p": "position"}
@@ -165,7 +165,7 @@ def multi_d_acquisition_events(
 
             new_event_list.append(ReadoutData(
                 detector=camera,
-                number=total_sequence_length,
+                num_blocks=total_sequence_length,
                 data_coordinates_iterator=coords_iterator
             ))
 
@@ -219,8 +219,8 @@ def multi_d_acquisition_events(
         if sequence is None:
             # Non-sequenced case: Add StartCapture and ReadoutImages events
             num_images = 1
-            event_set.append(StartCapture(detector=camera, num_images=num_images))
-            event_set.append(ReadoutData(detector=camera, number=num_images,
+            event_set.append(StartCapture(detector=camera, num_blocks=num_images))
+            event_set.append(ReadoutData(detector=camera, num_blocks=num_images,
                                          data_coordinates_iterator=[DataCoordinates(**coords)]))
 
         final_events.append(event_set)

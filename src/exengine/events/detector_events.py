@@ -17,7 +17,7 @@ class DataAcquired(Notification[DataCoordinates]):
 
 class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
     """
-    Readout one or more pieces of data (e.g. images) and associated metadata from a Detector device (e.g. a camera)
+    Readout one or more blocks of data (e.g. images) and associated metadata from a Detector device (e.g. a camera)
 
     Args:
         data_coordinate_iterator (Iterable[DataCoordinates]): An iterator or list of DataCoordinates objects, which
@@ -25,10 +25,10 @@ class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
             elements (or indefinitely if num_images is None)
         detector (Union[Detector, str]): The Detector object to read data from. Can be the object itself,
             or the name of the object in the ExecutionEngine's device registry.
-        number (int): The number of pieces of data (e.g. images) to read out. If None, the readout will continue until
-            the data_coordinate_iterator is exhausted or the camera is stopped and no more images are available.
-        stop_on_empty (bool): If True, the readout will stop when the detector is stopped when there is not an
-            image available to read
+        num_blocks (int): The number of pieces of data (e.g. images) to read out. If None, the readout will continue until
+            the data_coordinate_iterator is exhausted or the Detector is stopped and no more images are available.
+        stop_on_empty (bool): If True, the readout will stop when the detector is stopped when there is no data
+            available to read
         data_handler (DataHandler): The DataHandler object that will handle the data read out by this event
     """
     notification_types = [DataAcquired]
@@ -37,11 +37,11 @@ class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
                                                        Iterable[DataCoordinates], Iterable[Dict[str, Union[int, str]]]],
                  detector: Optional[Union[Detector, str]] = None,
                  data_handler: DataHandler = None,
-                 number: int = None,
+                 num_blocks: int = None,
                  stop_on_empty: bool = False):
         super().__init__(data_coordinates_iterator=data_coordinates_iterator, data_handler=data_handler)
         self.detector = detector  # TODO: why does IDE not like this type hint?
-        self.number = number
+        self.num_blocks = num_blocks
         self.stop_on_empty = stop_on_empty
 
 
@@ -51,7 +51,7 @@ class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
                                       else ExecutionEngine.get_device(self.detector))
         # TODO a more efficient way to do this is with callbacks from the camera
         #  but this is not currently implemented, at least for Micro-Manager cameras
-        image_counter = itertools.count() if self.number is None else range(self.number)
+        image_counter = itertools.count() if self.num_blocks is None else range(self.num_blocks)
         for image_number, image_coordinates in zip(image_counter, self.data_coordinate_iterator):
             while True:
                 # check if event.stop has been called
@@ -69,20 +69,27 @@ class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
 
 class StartCapture(ExecutorEvent):
     """
-    Special device instruction that captures images from a camera
+    Special device instruction that captures images from a Detector device (e.g. a camera)
     """
 
-    def __init__(self, num_images: int, detector: Optional[Detector] = None):
+    def __init__(self, num_blocks: int, detector: Optional[Detector] = None):
+        """
+        Args:
+            num_blocks (int): The of pieces of data to capture (i.e. images on a camera)
+            detector (Union[Detector, str]): The Detector object to capture images from. Can be the object itself,
+                or the name of the object in the ExecutionEngine's device registry. If None, it will be inferred at
+                runtime
+        """
         super().__init__()
-        self.num_images = num_images
+        self.num_blocks = num_blocks
         self.detector = detector
 
     def execute(self):
         """
-        Capture images from the camera
+        Capture images from the detector
         """
         try:
-            self.detector.arm(self.num_images)
+            self.detector.arm(self.num_blocks)
             self.detector.start()
         except Exception as e:
             self.detector.stop()
@@ -90,7 +97,7 @@ class StartCapture(ExecutorEvent):
 
 class StartContinuousCapture(ExecutorEvent):
     """
-    Tell data-producing device to start capturing images continuously, until a stop signal is received
+    Tell Detector device to start capturing images continuously, until a stop signal is received
     """
 
     def __init__(self, camera: Optional[Detector] = None):
@@ -110,7 +117,7 @@ class StartContinuousCapture(ExecutorEvent):
 
 class StopCapture(ExecutorEvent):
     """
-    Tell data-producing device to start capturing images continuously, until a stop signal is received
+    Tell Detector device to start capturing data continuously, until a stop signal is received
     """
 
     def __init__(self, camera: Optional[Detector] = None):
