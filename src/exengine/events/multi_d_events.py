@@ -1,7 +1,7 @@
 from exengine.events.positioner_events import SetPosition2DEvent
 from exengine.events.detector_events import StartCapture, ReadoutData
 from exengine.events.misc_events import SetTimeEvent
-from device_types import SingleAxisPositioner, Detector
+from exengine.device_types import SingleAxisPositioner, Detector
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.events.property_events import (SetPropertiesEvent)
 from exengine.events.positioner_events import SetTriggerable1DPositionsEvent, SetPosition1DEvent

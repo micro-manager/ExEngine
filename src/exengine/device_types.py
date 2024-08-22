@@ -5,7 +5,7 @@ Base classes for device_implementations that can be used by the execution engine
 from abc import abstractmethod
 from typing import Tuple
 import numpy as np
-from kernel.device import Device
+from .kernel.device import Device
 
 
 # TODO: could replace hard coded classes with

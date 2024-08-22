@@ -2,7 +2,7 @@
 from typing import Iterable, Optional, Union, Dict
 import itertools
 from exengine.kernel.ex_event_base import ExecutorEvent
-from device_types import Detector
+from exengine.device_types import Detector
 from exengine.kernel.data_coords import DataCoordinates, DataCoordinatesIterator
 from exengine.kernel.notification_base import Notification, NotificationCategory
 from exengine.kernel.ex_event_capabilities import Stoppable, DataProducing

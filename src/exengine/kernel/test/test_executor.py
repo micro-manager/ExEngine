@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import MagicMock
 from exengine.kernel.ex_event_base import ExecutorEvent
 
-from kernel.device import Device
+from exengine.kernel.device import Device
 import time
 
 
@@ -80,7 +80,7 @@ def test_multiple_method_calls(execution_engine):
 
 from concurrent.futures import ThreadPoolExecutor
 from exengine.kernel.executor import ExecutionEngine
-from device_types import Device
+from exengine.device_types import Device
 import threading
 
 

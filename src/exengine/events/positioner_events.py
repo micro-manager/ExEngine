@@ -2,7 +2,7 @@ from typing import List, Union, Tuple, Optional, SupportsFloat
 import numpy as np
 
 from exengine.kernel.ex_event_base import ExecutorEvent
-from device_types import (DoubleAxisPositioner, SingleAxisPositioner,
+from exengine.device_types import (DoubleAxisPositioner, SingleAxisPositioner,
                           TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
 
 

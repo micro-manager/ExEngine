@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from exengine.kernel.data_coords import DataCoordinates
-from storage_backends.ndtiff_and_ndram.NDTiffandRAM import NDRAMStorage, NDTiffStorage
+from exengine.storage_backends.ndtiff_and_ndram.NDTiffandRAM import NDRAMStorage, NDTiffStorage
 from exengine.kernel.data_storage_base import DataStorage
 
 @pytest.fixture(params=["tiff", "ram"])
