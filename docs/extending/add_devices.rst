@@ -1,7 +1,7 @@
 .. _add_devices:
 
 ##############################
-Adding Support for New Devices
+Adding New Device Backends
 ##############################
 
 We welcome contributions of new device backends to ExEngine! If you've developed a backend for a new device, framework, or system, please consider submitting a Pull Request.

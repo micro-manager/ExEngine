@@ -1,9 +1,9 @@
-#####################################################
-ExEngine: An execution engine for microscope control
-#####################################################
+############################################################################
+ExEngine: an execution engine for microscope and laboratory hardware control
+############################################################################
 
 
-ExEngine is a versatile toolkit for microscopy hardware control and data acquisition, bridging low-level hardware control with high-level experiment design and user interfaces. It empowers researchers to create sophisticated microscopy experiments without getting bogged down in details, while scaling to support advanced automated and AI-driven workflows across various microscopy applications.
+ExEngine is a pure Python toolkit for building microscopy and laboratory hardware control software. Unlike application-specific software that provide tightly integrated device access, control logic, and user interfaces,ExEngine is a flexible intermediary which enables mixing and matching of components from different frameworks within a single application. This approach allows researchers to build custom software that meets their specific needs, without being limited to vertically integrated software stacks.
 
 Key Features:
 ==============
@@ -36,3 +36,4 @@ Key Features:
    design
    usage
    extending
+   apis

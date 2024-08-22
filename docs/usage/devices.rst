@@ -68,7 +68,7 @@ By default, all ExEngine devices are made thread-safe.
 
 This is done under the hood by intercepting and rerouting all device calls to common threads.
 
-This can be turned off by setting the `no_executor` parameter to `True` when initializing a device:
+This can be turned off by setting the ``no_executor`` parameter to ``True`` when initializing a device:
 
 .. code-block:: python
 

@@ -1,13 +1,10 @@
-.. _NDTiff and RAM backend:
+.. _ndstorage_backend:
 
 ##################################################################
 NDTiff and RAM backend
 ##################################################################
 
 `NDTiff <https://github.com/micro-manager/NDStorage>`_ is a high-performance indexed Tiff format used to save image data in Micro-Manager. NDRAM is a light-weight in-memory storage class. Both implementations provide the same API for in-memory (NDRAMStorage) or file-based (NDTiffStorage) storage.
-
-`NDTiff <https://github.com/micro-manager/NDStorage>`_ is a high-performance, indexed Tiff format that can be written to local disk or network storage. It is one of the formats used in Micro-Manager. NDRAM is a simple in-memory storage. Both share the same API, enabling easy switching between file-based and in-memory storage.
-
 
 To install this backend:
 

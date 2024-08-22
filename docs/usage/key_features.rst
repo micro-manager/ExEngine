@@ -1,7 +1,7 @@
-.. _key concepts:
+.. _key_features:
 
 ============
-Key concepts
+Key features
 ============
 
 .. toctree::

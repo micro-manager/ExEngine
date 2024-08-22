@@ -19,6 +19,8 @@ import sphinx_rtd_theme
 extensions = [
     'sphinx_rtd_theme',
     'sphinx_togglebutton',
+    'sphinx.ext.autodoc',
+    'sphinx_autodoc_typehints',  # for better type hint support
 ]
 
 

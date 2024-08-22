@@ -3,8 +3,6 @@
 Installation and Setup
 ======================
 
-Basic Installation
-------------------
 ExEngine was design to support multiple device and data storage backends, either independently or in combination. Each backend has some adapter code that lives within the Exengine package, and (optionally) other dependencies that need to be installed separately.
 
 To install ExEngine with all available backend adapters, use pip:
