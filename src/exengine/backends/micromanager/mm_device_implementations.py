@@ -2,8 +2,8 @@
 Implementation of Micro-Manager device_implementations.py in terms of the AcqEng bottom API
 """
 
-from exengine.kernel.device_types_base import (Detector, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
-from exengine.kernel.device_types_base import Device
+from exengine.device_types import (Detector, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
+from exengine.kernel.device import Device
 from mmpycorex import Core
 import numpy as np
 import pymmcore
@@ -228,12 +228,6 @@ class MicroManagerCamera(MicroManagerDevice, Detector):
         self._last_snap = None
         self._snap_active = False
 
-    def set_exposure(self, exposure: float) -> None:
-        self._core_noexec.set_exposure(self._device_name_noexec, exposure)
-
-    def get_exposure(self) -> float:
-        return self._core_noexec.get_exposure(self._device_name_noexec)
-
     def arm(self, frame_count=None) -> None:
         if frame_count == 1:
             # nothing to prepare because snap will be called
@@ -268,7 +262,7 @@ class MicroManagerCamera(MicroManagerDevice, Detector):
     def is_stopped(self) -> bool:
         return not self._core_noexec.is_sequence_running(self._device_name_noexec) and not self._snap_active
 
-    def pop_image(self, timeout=None) -> Tuple[np.ndarray, dict]:
+    def pop_data(self, timeout=None) -> Tuple[np.ndarray, dict]:
         if self._frame_count != 1:
             md = pymmcore.Metadata()
             start_time = time.time()

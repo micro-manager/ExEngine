@@ -7,7 +7,7 @@ from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.kernel.notification_base import EventExecutedNotification
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
-from exengine.kernel.data_storage_api import DataStorageAPI
+from exengine.kernel.data_storage_base import DataStorage
 from exengine.kernel.notification_base import DataStoredNotification
 from exengine.kernel.data_coords import DataCoordinates
 
@@ -27,7 +27,7 @@ class CustomEvent(ExecutorEvent):
 
 @pytest.fixture
 def mock_storage():
-    return Mock(spec=DataStorageAPI)
+    return Mock(spec=DataStorage)
 
 @pytest.fixture
 def mock_execution_engine(monkeypatch):

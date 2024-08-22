@@ -21,7 +21,7 @@ camera.Exposure = 100
 
 camera.arm(1)
 camera.start()
-image, metadata = camera.pop_image()
+image, metadata = camera.pop_data()
 
 
 print(image)

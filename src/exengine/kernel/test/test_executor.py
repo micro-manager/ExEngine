@@ -4,10 +4,10 @@ Ensures rerouting of method calls to the ExecutionEngine and proper handling of 
 """
 
 import pytest
-from unittest.mock import MagicMock, create_autospec
+from unittest.mock import MagicMock
 from exengine.kernel.ex_event_base import ExecutorEvent
 
-from exengine.kernel.device_types_base import Device
+from exengine.kernel.device import Device
 import time
 
 
@@ -80,7 +80,7 @@ def test_multiple_method_calls(execution_engine):
 
 from concurrent.futures import ThreadPoolExecutor
 from exengine.kernel.executor import ExecutionEngine
-from exengine.kernel.device_types_base import Device
+from exengine.device_types import Device
 import threading
 
 

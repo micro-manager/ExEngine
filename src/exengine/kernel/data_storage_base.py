@@ -2,17 +2,18 @@
 Protocol for storage_backends class that acquisitions ultimate write to where the acquisition data ultimately gets stored
 """
 
-from typing import Protocol, runtime_checkable, Union, Dict
+from typing import Union, Dict
+from abc import ABC
 from .data_coords import DataCoordinates
 import numpy as np
 from pydantic.types import JsonValue
 
-@runtime_checkable
-class DataStorageAPI(Protocol):
+class DataStorage(ABC):
 
     # TODO: about these type hints: better to use the dicts only or also include the DataCoordinates?
     #  DataCoordinates can essentially be used as a dict anyway due to duck typing, so
-    #  maybe its better that other implementations not have to depend on the DataCoordinates class
+    #  is it better to not have to depend on the DataCoordinates class? Perhaps not because storage backends
+    #  are needed anyway
     def __contains__(self, data_coordinates: Union[DataCoordinates, Dict[str, Union[int, str]]]) -> bool:
         """Check if item is in the container."""
         ...

@@ -12,7 +12,7 @@ Key Features:
 
 2. **Adaptable to Multiple Frontends**: Compatible with GUIs, scripts, networked automated labs, and AI-integrated microscopy
 
-3. **Advanced Threading Capabilities**: Utilities for parallelization, asynchronous execution, and complex, multi-device workflows.
+3. **Powerful Threading Capabilities**: Utilities for parallelization, asynchronous execution, and complex, multi-device workflows.
 
 4. **Modality Agnostic**: Adaptable to diverse microscopy techniques thanks to general purpose design.
 

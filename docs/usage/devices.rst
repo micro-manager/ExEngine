@@ -1,47 +1,81 @@
 .. _devices:
 
 
-#######
+=======
 Devices
-#######
-
-Devices in ExEngine are software representations of hardware components in a microscope system. When possible, they provide a consistent way to interact with diverse equipment, abstracting away the complexities of individual hardware implementations. When not possible, devices can additionally expose specialized APIs specific to individual components.
-
-ExEngine supports multiple **backends** - individual devices or libraries of devices (e.g., Micro-Manager). The method to create devices depends on the specific backend in use.
+=======
 
 
-Here's a minimal example using the Micro-Manager backend:
+Devices in ExEngine represent hardware or software components. They provide:
+
+- Standardized interfaces for common functionalities
+- Thread-safe execution of commands
+- Support for multiple backend implementations (i.e. physical hardware devices or libraries for the control of multiple devices)
+- Flexibility to represent any grouping of related functionality
+
+
+While often used for microscopy hardware, ExEngine's device concept and its benefits are not limited to this domain. A device can represent physical hardware, virtual devices, or software services.
+
+
+
+Using Devices
+-------------
+ExEngine exposes devices through specific backends. 
+
+For example, the Micro-Manager backend enables access to hardware devices controllable through Micro-Manager. (For installation and setup instructions, see :ref:`micro-manager_backend`).
 
 .. code-block:: python
 
-   from mmpycorex import create_core_instance
-   from exengine.kernel.executor import ExecutionEngine
-   from exengine.backends.micromanager.mm_device_implementations import MicroManagerSingleAxisStage
+    # (assuming MM backend already installed and initialized)
+    # load the micro-manager device for an objective lens switcher
+    objective = MicroManagerDevice("Objective")
+    
+    # Set the objective in use
+    objective.Label = "Nikon 10X S Fluor"
 
-   # Create the ExecutionEngine
-   executor = ExecutionEngine()
-
-   # Initialize Micro-Manager core
-   create_core_instance(config_file='MMConfig_demo.cfg')
-
-   # Access Micro-Manager device
-   z_stage = MicroManagerSingleAxisStage()
-
-   z_stage.set_position(1234.56)
+Without further specialization, devices are free to have any method and property names. However, certain functionalities are standardized through device types:
 
 
-Device Hierarchies
-""""""""""""""""""
 
-Devices in ExEngine exist in hierarchies. All devices must inherit from the exengine.Device base class. Further functionality can be standardized by inheriting from one or more specific device type classes. For example, ``MicroManagerSingleAxisStage`` is a subclass of ``exengine.SingleAxisPositioner``, which is itself a subclass of ``exengine.Device``.
+Device Types
+^^^^^^^^^^^^
+Functionality can be grouped with certain device types:
 
-The advantage of this hierarchical structure is that it standardizes functionality, allowing code to be written for generic device types (e.g., a single axis positioner) that will work with many different device libraries. This approach enables a common API across different libraries of devices, similar to Micro-Manager's device abstraction layer but on a meta-level - spanning multiple device ecosystems rather than just devices within a single project. However, ExEngine's device system is designed to be adaptable. While adhering to the standardized interfaces offers the most benefits, users can still leverage many advantages of the system without implementing these specialized APIs.
+For example, the Detector type, which has standardized methods like start, stop, arm, etc.
+
+Here's a quick example of a Detector:
+
+.. code-block:: python
+
+    detector = MicroManagerCamera()
+    camera.arm(10) # this acquires 10 images
+    camera.start()
+
+Events often take specific device types as parameters. This enables the re-use of events across multiple devices
+
+For example, the ReadoutData event takes a detector:
+
+.. code-block:: python
+
+    readout_event = ReadoutData(detector=camera, ...)
 
 
-TODO: thread standardization features of devices (and how to turn off)
 
-TODO: calling functions on devices directly
 
-TODO: link to guide to adding backends
+Thread Safety
+-------------
+By default, all ExEngine devices are made thread-safe. 
 
-TODO: transition to more complex with events
+This is done under the hood by intercepting and rerouting all device calls to common threads.
+
+This can be turned off by setting the `no_executor` parameter to `True` when initializing a device:
+
+.. code-block:: python
+
+    device = SomeDevice(no_executor=True)
+
+
+
+Adding New Device Types
+-----------------------
+For information on adding new device types, see :ref:`add_devices`.

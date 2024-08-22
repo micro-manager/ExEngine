@@ -32,7 +32,7 @@ def test_sequenced_z_stack():
     assert isinstance(events[0], SetTriggerable1DPositionsEvent)
     assert isinstance(events[1], StartCapture)
     assert isinstance(events[2], ReadoutData)
-    assert events[1].num_images == 6  # 6 z-positions
+    assert events[1].num_blocks == 6  # 6 z-positions
 
 
 def test_sequenced_timelapse():
@@ -58,11 +58,11 @@ def test_sequenced_timelapse():
 
     # Check the SetTriggerablePropertySequencesEvent
     # Check the StartCapture event
-    assert events[0].num_images == num_time_points
+    assert events[0].num_blocks == num_time_points
 
     # Check the ReadoutImages event
     readout_event = events[1]
-    assert readout_event.num_images == num_time_points
+    assert readout_event.num_blocks == num_time_points
 
     # Check the data coordinate iterator
     coords = list(readout_event.data_coordinate_iterator)
@@ -95,7 +95,7 @@ def test_sequenced_channels():
     assert isinstance(events[0], SetTriggerablePropertySequencesEvent)
     assert isinstance(events[1], StartCapture)
     assert isinstance(events[2], ReadoutData)
-    assert events[1].num_images == 3  # 3 channels
+    assert events[1].num_blocks == 3  # 3 channels
 
 
 # TODO: implement channels in multi d
@@ -148,7 +148,7 @@ def test_sequenced_channels_and_z_stack_zc_order():
     assert isinstance(events[3], ReadoutData)
 
     # Check if the number of images is correct (6 z-positions * 2 channels)
-    assert events[2].num_images == 12
+    assert events[2].num_blocks == 12
 
     # Check if the number of z-positions is correct
     assert len(events[0].positions) == 12
@@ -190,7 +190,7 @@ def test_sequenced_channels_and_z_stack_cz_order():
     assert isinstance(events[1], SetTriggerable1DPositionsEvent) or isinstance(events[0], SetTriggerable1DPositionsEvent)
     assert isinstance(events[2], StartCapture)
     assert isinstance(events[3], ReadoutData)
-    assert events[2].num_images == 12
+    assert events[2].num_blocks == 12
 
     expected_channel_sequence = ['DAPI'] * 6 + ['FITC'] * 6
     assert events[1].property_sequences[0][2] == expected_channel_sequence
@@ -220,7 +220,7 @@ def test_sequenced_time_channels_and_z_stack_tzc_order():
     assert isinstance(events[0], SetTriggerablePropertySequencesEvent) or isinstance(events[0], SetTriggerable1DPositionsEvent)
     assert isinstance(events[1], SetTriggerable1DPositionsEvent) or isinstance(events[1], SetTriggerablePropertySequencesEvent)
     assert isinstance(events[2], StartCapture)
-    assert events[2].num_images == 24  # 3 time points * 4 z-positions * 2 channels
+    assert events[2].num_blocks == 24  # 3 time points * 4 z-positions * 2 channels
 
 
     expected_z_sequence = np.array([0, 0, 2, 2, 4, 4, 6, 6, 0, 0, 2, 2, 4, 4, 6, 6, 0, 0, 2, 2, 4, 4, 6, 6])
@@ -257,7 +257,7 @@ def test_sequenced_channels_and_positions():
     assert isinstance(events[0], SetTriggerablePropertySequencesEvent)  # Channel
     assert isinstance(events[1], StartCapture)
     assert isinstance(events[2], ReadoutData)
-    assert events[1].num_images == 6  # 2 channels * 3 positions
+    assert events[1].num_blocks == 6  # 2 channels * 3 positions
 
     expected_channel_sequence = ['DAPI', 'FITC'] * 3  # Repeats for each position
     assert events[0].property_sequences[0][2] == expected_channel_sequence

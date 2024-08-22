@@ -4,24 +4,80 @@
 Adding Support for New Devices
 ##############################
 
+We welcome contributions of new device backends to ExEngine! If you've developed a backend for a new device, framework, or system, please consider submitting a Pull Request.
+
 This guide outlines the process of adding support for new devices to the ExEngine framework.
 
-1. Inherit from the Device Base Class
-==========================================
 
-All new devices should inherit from the ``Device`` base class or one or more of its subclasses (see `exengine.kernel.device_types_base <https://github.com/micro-manager/ExEngine/blob/main/src/exengine/kernel/device_types_base.py>`_)
+Code Organization and packaging
+================================
+
+When adding a new backend to ExEngine, follow this directory structure:
+
+.. code-block:: text
+
+    src/exengine/
+    └── backends/
+        └── your_new_backend/
+            ├── __init__.py
+            ├── your_implementations.py
+            └── test/
+                ├── __init__.py
+                └── test_your_backend.py
+
+Replace ``your_new_backend`` with an appropriate name for your backend.
+
+You may also want to edit the ``__init__.py`` file in the ``your_new_backend`` directory to import the Classes for each device you implement in the ``your_implementations.py`` or other files (see the micro-manager backend for an example of this).
+
+Additional dependencies
+------------------------
+
+If your backend requires additional dependencies, add them to the ``pyproject.toml`` file in the root directory of the project. This ensures that the dependencies are installed when the backend is installed.
+
+1. Open the ``pyproject.toml`` file in the root directory of the project.
+2. Add a new optional dependency group for your backend. For example:
+
+   .. code-block:: toml
+
+      [project.optional-dependencies]
+      your_new_backend = ["your_dependency1", "your_dependency2"]
+
+3. Update the ``all`` group to include your new backend:
+
+   .. code-block:: toml
+
+      all = [
+          "mmpycorex",
+          "ndstorage",
+
+          "your_dependency1",
+          "your_dependency2"
+      ]
+
+4. Also add it to the ``device backends`` group, so that it can be installed with ``pip install exengine[your_new_backend]``:
+
+   .. code-block:: toml
+
+      # device backends
+      your_new_backend = ["dependency1", "dependency2"]
+
+
+Implementing a New Device
+===========================
+
+All new devices should inherit from the ``Device`` base class or one or more of its subclasses (see `exengine.device_types <https://github.com/micro-manager/ExEngine/blob/main/src/exengine/device_types.py>`_)
 
 .. code-block:: python
 
-   from exengine.kernel.device_types_base import Device
+   from exengine.base_classes import Device
 
    class ANewDevice(Device):
        def __init__(self, name):
            super().__init__(name)
            # Your device-specific initialization code here
 
-2. Implement Device Functionality
-==========================================
+Exposing functionality
+-----------------------
 
 Devices can expose functionality through properties and methods. The base ``Device`` class primarily uses properties.
 
@@ -55,8 +111,8 @@ Here's an example of implementing these special characteristics:
 
        # Implement other abstract methods...
 
-3. Use Specialized Device Types
-==========================================
+Use Specialized Device Types
+---------------------------------
 
 There are specialized device types that standardize functionalities through methods. For example, a camera device type will have methods for taking images, setting exposure time, etc. Inheriting from one or more of these devices is recommended whenever possible, as it ensures compatibility with existing workflows and events.
 
@@ -64,20 +120,84 @@ Specialized device types implement functionality through abstract methods that m
 
 .. code-block:: python
 
-   from exengine.kernel.device_types_base import Detector
+   from exengine.device_types import Detector
 
-   # TODO: may change this API in the future
    class ANewCameraDevice(Detector):
-       def set_exposure(self, exposure: float) -> None:
+       def arm(self, frame_count=None):
            # Implementation here
 
-       def get_exposure(self) -> float:
+       def start():
            # Implementation here
 
-       # Implement other camera-specific methods...
+       # Implement other detector-specific methods...
+
+
+
+Adding Tests
+------------
+
+1. Create a ``test_your_backend.py`` file in the ``test/`` directory of your backend.
+2. Write pytest test cases for your backend functionality. For example:
+
+   .. code-block:: python
+
+      import pytest
+      from exengine.backends.your_new_backend import YourNewDevice
+
+      def test_your_device_initialization():
+          device = YourNewDevice("TestDevice")
+          assert device.name == "TestDevice"
+
+      def test_your_device_method():
+          device = YourNewDevice("TestDevice")
+          result = device.some_method()
+          assert result == expected_value
+
+      # Add more test cases as needed
+
+Running Tests
+-------------
+
+To run tests for your new backend:
+
+1. Install the test dependencies. In the ExEngine root directory, run:
+
+   .. code-block:: bash
+
+      pip install -e exengine[test,your_new_backend]
+
+2. Run pytest for your backend:
+
+   .. code-block:: bash
+
+      pytest -v src/exengine/backends/your_new_backend/test
+
+Adding documentation
+------------------------
+
+1. Add documentation for your new backend in the ``docs/`` directory.
+2. Create a new RST file, e.g., ``docs/usage/backends/your_new_backend.rst``, describing how to use your backend.
+3. Update ``docs/usage/backends.rst`` to include your new backend documentation.
+
+To build the documentation locally, you may need to install the required dependencies. In the ``exengine/docs`` directory, run:
+
+.. code-block:: bash
+
+   pip install -r requirements.txt
+
+Then, to build, in the ``exengine/docs`` directory, run:
+
+.. code-block:: bash
+
+   make clean && make html
+
+then open ``_build/html/index.html`` in a web browser to view the documentation.
+
+
+
 
 Advanced Topics
-===============
+-----------------
 
 What inheritance from ``Device`` provides
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -126,3 +246,4 @@ Using the first approach allows you to selectively bypass the executor for speci
 Note that when using ``no_executor_attrs``, you need to specify the names of the attributes or methods as strings in a sequence (e.g., tuple or list) passed to the ``no_executor_attrs`` parameter in the ``super().__init__()`` call.
 
 These approaches provide flexibility in controlling which parts of your device interact with the executor, allowing for optimization where direct access is safe and beneficial.
+

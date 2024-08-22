@@ -10,9 +10,9 @@ from unittest.mock import Mock
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
-from exengine.kernel.data_storage_api import DataStorageAPI
+from exengine.kernel.data_storage_base import DataStorage
 
-class MockDataStorage(DataStorageAPI):
+class MockDataStorage(DataStorage):
     def __init__(self):
         self.data = {}
         self.metadata = {}

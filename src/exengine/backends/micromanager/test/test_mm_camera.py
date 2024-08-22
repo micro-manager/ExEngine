@@ -7,7 +7,7 @@ from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.backends.micromanager.mm_device_implementations import MicroManagerCamera
-from exengine.storage_backends.NDTiffandRAM import NDRAMStorage
+from exengine.storage_backends.ndtiff_and_ndram.NDTiffandRAM import NDRAMStorage
 from exengine.events.detector_events import (StartCapture, ReadoutData,
                                              StartContinuousCapture, StopCapture)
 
@@ -26,8 +26,8 @@ def capture_images(num_images, executor, camera):
     storage = NDRAMStorage()
     data_handler = DataHandler(storage=storage)
 
-    start_capture_event = StartCapture(num_images=num_images, detector=camera)
-    readout_images_event = ReadoutData(num_images=num_images, detector=camera,
+    start_capture_event = StartCapture(num_blocks=num_images, detector=camera)
+    readout_images_event = ReadoutData(num_blocks=num_images, detector=camera,
                                        data_coordinates_iterator=[DataCoordinates(time=t) for t in range(num_images)],
                                        data_handler=data_handler)
 

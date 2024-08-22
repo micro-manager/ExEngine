@@ -69,10 +69,6 @@ class ExecutorEvent(ABC, metaclass=_ExecutorEventMeta):
         """
         Execute the event. This event is called by the executor, and should be overriden by subclasses to implement
         the event's functionality.
-
-        Args:
-            context: Execution context object that holds information related to this specific execution of the event.
-            (Since the same event can be reused multiple times, this object is unique to each execution of the event.)
         """
         pass
 
