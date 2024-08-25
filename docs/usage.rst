@@ -10,3 +10,4 @@ Usage
    usage/installation
    usage/backends
    usage/key_features
+   usage/threading

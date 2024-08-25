@@ -15,6 +15,8 @@ from .ex_future import ExecutionFuture
 
 from .data_handler import DataHandler
 
+_MAIN_THREAD_NAME = 'MainExecutorThread'
+_ANONYMOUS_THREAD_NAME = 'AnonymousExecutorThread'
 
 class MultipleExceptions(Exception):
     def __init__(self, exceptions: List[Exception]):
@@ -34,7 +36,7 @@ class ExecutionEngine:
                 cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, num_threads=1):
+    def __init__(self):
         self._exceptions = queue.Queue()
         self._devices = {}
         self._notification_queue = queue.Queue()
@@ -46,9 +48,8 @@ class ExecutionEngine:
 
         with self._lock:
             if not hasattr(self, '_initialized'):
-                self._thread_managers = []
-                for _ in range(num_threads):
-                    self._start_new_thread()
+                self._thread_managers = {}
+                self._start_new_thread(_MAIN_THREAD_NAME)
                 self._initialized = True
 
     def subscribe_to_notifications(self, subscriber: Callable[[Notification], None],
@@ -143,7 +144,7 @@ class ExecutionEngine:
         """
         Check if the current thread is an executor thread
         """
-        return threading.current_thread() is ExecutionEngine.get_instance()._thread_managers[0]
+        return threading.current_thread().name is _MAIN_THREAD_NAME
 
     @classmethod
     def on_any_executor_thread(cls):
@@ -153,8 +154,8 @@ class ExecutionEngine:
                   and threading.current_thread().execution_engine_thread)
         return result
 
-    def _start_new_thread(self):
-        self._thread_managers.append(_ExecutionThreadManager())
+    def _start_new_thread(self, name):
+        self._thread_managers[name] = _ExecutionThreadManager(name)
 
     def set_debug_mode(self, debug):
         ExecutionEngine._debug = debug
@@ -176,7 +177,7 @@ class ExecutionEngine:
             else:
                 raise MultipleExceptions(exceptions)
 
-    def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent]],
+    def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent]], thread_name=None,
                transpile: bool = True, prioritize: bool = False, use_free_thread: bool = False,
                data_handler: DataHandler = None) -> Union[ExecutionFuture, Iterable[ExecutionFuture]]:
         """
@@ -195,6 +196,10 @@ class ExecutionEngine:
         event_or_events : Union[ExecutorEvent, Iterable[ExecutorEvent]]
             A single ExecutorEvent or an iterable of ExecutorEvents to be submitted.
 
+        thread_name : str, optional (default=None)
+            Name of the thread to submit the event to. If None, the thread is determined by the
+            'use_free_thread' parameter.
+
         transpile : bool, optional (default=True)
             If True and multiple events are submitted, attempt to optimize them for better performance.
             This may result in events being combined or reorganized.
@@ -204,7 +209,7 @@ class ExecutionEngine:
             Useful for system-wide changes affecting other events, like hardware adjustments.
 
         use_free_thread : bool, optional (default=False)
-            If True, execute the event(s) on an available thread with an empty queue, creating a execution_engine one if necessary.
+            If True, execute the event(s) on an available thread with an empty queue, creating a new thread if needed.
             Useful for operations like cancelling or stopping events awaiting signals.
             If False, execute on the primary thread.
 
@@ -224,11 +229,6 @@ class ExecutionEngine:
         - Use 'prioritize' for critical system changes that should occur before other queued events.
         - 'use_free_thread' is essential for operations that need to run independently, like cancellation events.
         """
-
-        # global ExecutorEvent
-        # if isinstance(ExecutorEvent, str):
-        #     # runtime import to avoid circular imports
-        #     from .ex_event_base import ExecutorEvent
         if isinstance(event_or_events, ExecutorEvent):
             event_or_events = [event_or_events]
 
@@ -236,29 +236,45 @@ class ExecutionEngine:
             # TODO: transpile events
             pass
 
-        futures = tuple(self._submit_single_event(event, use_free_thread, prioritize)
+        futures = tuple(self._submit_single_event(event, thread_name, use_free_thread, prioritize)
                    for event in event_or_events)
         if len(futures) == 1:
             return futures[0]
         return futures
 
-    def _submit_single_event(self, event: ExecutorEvent, use_free_thread: bool = False, prioritize: bool = False):
+    def _submit_single_event(self, event: ExecutorEvent, thread_name=None, use_free_thread: bool = False,
+                             prioritize: bool = False):
         """
         Submit a single event for execution
         """
         future = event._pre_execution(self)
         if use_free_thread:
             need_new_thread = True
-            for thread in self._thread_managers:
-                if thread.is_free():
-                    thread.submit_event(event)
-                    need_new_thread = False
-                    break
+            if thread_name is not None:
+                warnings.warn("thread_name may be ignored when use_free_thread is True")
+            # Iterate through main thread and anonymous threads
+            if self._thread_managers[_MAIN_THREAD_NAME].is_free():
+                self._thread_managers[_MAIN_THREAD_NAME].submit_event(event, prioritize=prioritize)
+                need_new_thread = False
+            else:
+                for tname in self._thread_managers.keys():
+                    if tname.startswith(_ANONYMOUS_THREAD_NAME) and self._thread_managers[tname].is_free():
+                        self._thread_managers[tname].submit_event(event, prioritize=prioritize)
+                        need_new_thread = False
+                        break
             if need_new_thread:
-                self._start_new_thread()
-                self._thread_managers[-1].submit_event(event)
+                num_anon_threads = len([tname for tn in self._thread_managers.keys() if
+                                        tn.startswith(_ANONYMOUS_THREAD_NAME)])
+                anonymous_thread_name = _ANONYMOUS_THREAD_NAME + str(num_anon_threads)
+                self._start_new_thread(anonymous_thread_name)
+                self._thread_managers[anonymous_thread_name].submit_event(event)
         else:
-            self._thread_managers[0].submit_event(event, prioritize=prioritize)
+            if thread_name is not None:
+                if thread_name not in self._thread_managers:
+                    self._start_new_thread(thread_name)
+                self._thread_managers[thread_name].submit_event(event, prioritize=prioritize)
+            else:
+                self._thread_managers[_MAIN_THREAD_NAME].submit_event(event, prioritize=prioritize)
 
         return future
 
@@ -270,10 +286,11 @@ class ExecutionEngine:
         # TODO: add explicit shutdowns for devices here?
         self._devices = None
         self._shutdown_event.set()
-        for thread in self._thread_managers:
+        for thread in self._thread_managers.values():
             thread.shutdown()
-        for thread in self._thread_managers:
+        for thread in self._thread_managers.values():
             thread.join()
+        self._thread_managers = None
 
         # Make sure the notification thread is stopped
         if self._notification_thread is not None:

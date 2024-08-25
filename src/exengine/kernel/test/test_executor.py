@@ -11,9 +11,9 @@ from exengine.kernel.device import Device
 import time
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def execution_engine():
-    engine = ExecutionEngine(num_threads=2)
+    engine = ExecutionEngine()
     yield engine
     engine.shutdown()
 
@@ -206,6 +206,7 @@ def create_sync_event(start_event, finish_event):
     event.execute_count = 0
 
     def execute():
+        event.thread_name = threading.current_thread().name
         start_event.set()  # Signal that the execution has started
         finish_event.wait()  # Wait for the signal to finish
         event.executed_time = time.time()
@@ -367,3 +368,112 @@ def test_single_execution_with_free_thread(execution_engine):
     assert event2.executed
     assert event1.execute_count == 1
     assert event2.execute_count == 1
+
+
+#######################################################
+# Tests for named thread functionalities ##############
+#######################################################
+
+from exengine.kernel.executor import _MAIN_THREAD_NAME
+from exengine.kernel.executor import _ANONYMOUS_THREAD_NAME
+
+
+def test_submit_to_main_thread(execution_engine):
+    """
+    Test submitting an event to the main thread.
+    """
+    start_event = threading.Event()
+    finish_event = threading.Event()
+    event = create_sync_event(start_event, finish_event)
+
+    future = execution_engine.submit(event)
+    start_event.wait()
+    finish_event.set()
+
+    assert event.thread_name == _MAIN_THREAD_NAME
+
+def test_submit_to_new_anonymous_thread(execution_engine):
+    """
+    Test that submitting an event with use_free_thread=True creates a new anonymous thread if needed.
+    """
+    start_event1 = threading.Event()
+    finish_event1 = threading.Event()
+    event1 = create_sync_event(start_event1, finish_event1)
+
+    start_event2 = threading.Event()
+    finish_event2 = threading.Event()
+    event2 = create_sync_event(start_event2, finish_event2)
+
+    # Submit first event to main thread
+    execution_engine.submit(event1)
+    start_event1.wait()
+
+    # Submit second event with use_free_thread=True
+    future2 = execution_engine.submit(event2, use_free_thread=True)
+    start_event2.wait()
+
+    finish_event1.set()
+    finish_event2.set()
+
+    assert event1.thread_name == _MAIN_THREAD_NAME
+    assert event2.thread_name.startswith(_ANONYMOUS_THREAD_NAME)
+    assert len(execution_engine._thread_managers) == 2  # Main thread + 1 anonymous thread
+
+def test_multiple_anonymous_threads(execution_engine):
+    """
+    Test creation of multiple anonymous threads when submitting multiple events with use_free_thread=True.
+    """
+    events = []
+    start_events = []
+    finish_events = []
+    num_events = 5
+
+    for _ in range(num_events):
+        start_event = threading.Event()
+        finish_event = threading.Event()
+        event = create_sync_event(start_event, finish_event)
+        events.append(event)
+        start_events.append(start_event)
+        finish_events.append(finish_event)
+
+    futures = [execution_engine.submit(event, use_free_thread=True) for event in events]
+
+    for start_event in start_events:
+        start_event.wait()
+
+    for finish_event in finish_events:
+        finish_event.set()
+
+    thread_names = set(event.thread_name for event in events)
+    assert len(thread_names) == num_events  # Each event should be on a different thread
+    assert all(name.startswith(_ANONYMOUS_THREAD_NAME) or name == _MAIN_THREAD_NAME for name in thread_names)
+    assert len(execution_engine._thread_managers) == num_events   # num_events anonymous threads
+
+def test_reuse_named_thread(execution_engine):
+    """
+    Test that submitting multiple events to the same named thread reuses that thread.
+    """
+    thread_name = "custom_thread"
+    events = []
+    start_events = []
+    finish_events = []
+    num_events = 3
+
+    for _ in range(num_events):
+        start_event = threading.Event()
+        finish_event = threading.Event()
+        event = create_sync_event(start_event, finish_event)
+        events.append(event)
+        start_events.append(start_event)
+        finish_events.append(finish_event)
+
+    futures = [execution_engine.submit(event, thread_name=thread_name) for event in events]
+
+    for finish_event in finish_events:
+        finish_event.set()
+
+    for start_event in start_events:
+        start_event.wait()
+
+    assert all(event.thread_name == thread_name for event in events)
+    assert len(execution_engine._thread_managers) == 2  # Main thread + 1 custom named thread
