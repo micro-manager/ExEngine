@@ -12,9 +12,9 @@ Key Features:
 
 2. **Adaptable to Multiple Frontends**: Compatible with GUIs, scripts, networked automated labs, and AI-integrated microscopy
 
-3. **Powerful Threading Capabilities**: Utilities for parallelization, asynchronous execution, and complex, multi-device workflows.
+3. :ref:`Powerful Threading Capabilities <threading>`: Utilities for parallelization, asynchronous execution, and complex, multi-device workflows.
 
-4. **Modality Agnostic**: Adaptable to diverse microscopy techniques thanks to general purpose design.
+4. **Modality Agnosticism**: Adaptable to diverse microscopy techniques thanks to general purpose design.
 
 5. **Modular, Reusable Device Instructions**: Building blocks that can be combined to create complex workflows, in order to promote code reuse and simplify experiment design
 

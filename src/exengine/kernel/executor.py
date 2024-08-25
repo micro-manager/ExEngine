@@ -236,7 +236,8 @@ class ExecutionEngine:
             # TODO: transpile events
             pass
 
-        futures = tuple(self._submit_single_event(event, thread_name, use_free_thread, prioritize)
+        futures = tuple(self._submit_single_event(event, thread_name or getattr(event_or_events[0], '_thread_name', None),
+                                                  use_free_thread, prioritize)
                    for event in event_or_events)
         if len(futures) == 1:
             return futures[0]
@@ -290,7 +291,6 @@ class ExecutionEngine:
             thread.shutdown()
         for thread in self._thread_managers.values():
             thread.join()
-        self._thread_managers = None
 
         # Make sure the notification thread is stopped
         if self._notification_thread is not None:

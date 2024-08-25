@@ -22,11 +22,13 @@ def execution_engine():
 # Tests for automated rerouting of method calls to the ExecutionEngine to executor threads
 #############################################################################################
 counter = 1
-class MockDevice(Device):
+class TestDevice(Device):
     def __init__(self):
         global counter
-        super().__init__(name=f'mock_device_{counter}')
+        super().__init__(name=f'mock_device_{counter}', no_executor_attrs=('property_getter_monitor', 'property_setter_monitor'))
         counter += 1
+        self.property_getter_monitor = False
+        self.property_setter_monitor = False
         self._test_attribute = None
 
     def test_method(self):
@@ -44,27 +46,40 @@ class MockDevice(Device):
         assert threading.current_thread().execution_engine_thread
         return self._test_attribute
 
+    @property
+    def test_property(self):
+        assert ExecutionEngine.on_any_executor_thread()
+        self.property_getter_monitor = True
+        return self._test_attribute
+
+    @test_property.setter
+    def test_property(self, value):
+        assert ExecutionEngine.on_any_executor_thread()
+        self.property_setter_monitor = True
+        self._test_attribute = value
+
+
 def test_device_method_execution(execution_engine):
-    mock_device = MockDevice()
+    mock_device = TestDevice()
 
     result = mock_device.test_method()
     assert result is True
 
 def test_device_attribute_setting(execution_engine):
-    mock_device = MockDevice()
+    mock_device = TestDevice()
 
     mock_device.set_test_attribute("test_value")
     result = mock_device.get_test_attribute()
     assert result == "test_value"
 
 def test_device_attribute_direct_setting(execution_engine):
-    mock_device = MockDevice()
+    mock_device = TestDevice()
 
     mock_device.direct_set_attribute = "direct_test_value"
     assert mock_device.direct_set_attribute == "direct_test_value"
 
 def test_multiple_method_calls(execution_engine):
-    mock_device = MockDevice()
+    mock_device = TestDevice()
 
     result1 = mock_device.test_method()
     mock_device.set_test_attribute("test_value")
@@ -73,6 +88,17 @@ def test_multiple_method_calls(execution_engine):
     assert result1 is True
     assert result2 == "test_value"
 
+def test_device_property_getter(execution_engine):
+    mock_device = TestDevice()
+
+    _ = mock_device.test_property
+    assert mock_device.property_getter_monitor
+
+def test_device_property_setter(execution_engine):
+    mock_device = TestDevice()
+
+    mock_device.test_property = "test_value"
+    assert mock_device.property_setter_monitor
 
 #######################################################
 # Tests for internal threads in Devices
@@ -204,9 +230,11 @@ def create_sync_event(start_event, finish_event):
     event.executed = False
     event.executed_time = None
     event.execute_count = 0
+    event.executed_thread_name = None
+    event._thread_name = None
 
     def execute():
-        event.thread_name = threading.current_thread().name
+        event.executed_thread_name = threading.current_thread().name
         start_event.set()  # Signal that the execution has started
         finish_event.wait()  # Wait for the signal to finish
         event.executed_time = time.time()
@@ -390,7 +418,7 @@ def test_submit_to_main_thread(execution_engine):
     start_event.wait()
     finish_event.set()
 
-    assert event.thread_name == _MAIN_THREAD_NAME
+    assert event.executed_thread_name == _MAIN_THREAD_NAME
 
 def test_submit_to_new_anonymous_thread(execution_engine):
     """
@@ -415,8 +443,8 @@ def test_submit_to_new_anonymous_thread(execution_engine):
     finish_event1.set()
     finish_event2.set()
 
-    assert event1.thread_name == _MAIN_THREAD_NAME
-    assert event2.thread_name.startswith(_ANONYMOUS_THREAD_NAME)
+    assert event1.executed_thread_name == _MAIN_THREAD_NAME
+    assert event2.executed_thread_name.startswith(_ANONYMOUS_THREAD_NAME)
     assert len(execution_engine._thread_managers) == 2  # Main thread + 1 anonymous thread
 
 def test_multiple_anonymous_threads(execution_engine):
@@ -444,7 +472,7 @@ def test_multiple_anonymous_threads(execution_engine):
     for finish_event in finish_events:
         finish_event.set()
 
-    thread_names = set(event.thread_name for event in events)
+    thread_names = set(event.executed_thread_name for event in events)
     assert len(thread_names) == num_events  # Each event should be on a different thread
     assert all(name.startswith(_ANONYMOUS_THREAD_NAME) or name == _MAIN_THREAD_NAME for name in thread_names)
     assert len(execution_engine._thread_managers) == num_events   # num_events anonymous threads
@@ -475,5 +503,5 @@ def test_reuse_named_thread(execution_engine):
     for start_event in start_events:
         start_event.wait()
 
-    assert all(event.thread_name == thread_name for event in events)
+    assert all(event.executed_thread_name == thread_name for event in events)
     assert len(execution_engine._thread_managers) == 2  # Main thread + 1 custom named thread

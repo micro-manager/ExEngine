@@ -42,12 +42,15 @@ class ExecutorEvent(ABC, metaclass=_ExecutorEventMeta):
     # Base events just have an event executed event. Subclasses can also add their own lists
     # of notifications types, and the metaclass will merge them into one big list
     notification_types: ClassVar[List[Type[Notification]]] = [EventExecutedNotification]
+    _thread_name: Optional[str] = None
 
     def __init__(self, *args, **kwargs):
         super().__init__()
         self._num_retries_on_exception = 0
         self._finished = False
         self._initialized = False
+        # Check for method-level preferred thread name first, then class-level
+        self._thread_name = getattr(self.execute, '_thread_name', None) or getattr(self.__class__, '_thread_name', None)
 
     def _pre_execution(self, engine) -> ExecutionFuture:
         """

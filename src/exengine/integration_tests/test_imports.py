@@ -36,6 +36,11 @@ def test_mm_imports():
     except ImportError as e:
         pytest.fail(f"Import failed for MicroManagerDevice: {e}")
 
+def test_onthread_import():
+    try:
+        from exengine import on_thread
+    except ImportError as e:
+        pytest.fail(f"Import failed for MicroManagerDevice: {e}")
 
 def test_ndstorage_imports():
     try:
