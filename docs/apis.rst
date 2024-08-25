@@ -13,6 +13,14 @@ ExecutionEngine
 .. autoclass:: exengine.kernel.ex_future.ExecutionFuture
    :members:
 
+.. autoclass:: exengine.device_types.Device
+   :members:
+
+.. autoclass:: exengine.kernel.ex_event_base.ExecutorEvent
+   :members:
+
+.. autoclass:: exengine.kernel.notification_base.Notification
+   :members:
 
 
 Data
@@ -29,18 +37,3 @@ Data
 .. autoclass:: exengine.kernel.data_handler.DataHandler
    :members:
 
-
-Base classes for extending ExEngine
-===================================
-
-.. autoclass:: exengine.device_types.Device
-   :members:
-
-.. autoclass:: exengine.kernel.ex_event_base.ExecutorEvent
-   :members:
-
-.. autoclass:: exengine.kernel.notification_base.Notification
-   :members:
-
-.. autoclass:: exengine.kernel.data_storage_base.DataStorage
-   :members:

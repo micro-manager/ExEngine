@@ -6,6 +6,7 @@ from functools import wraps
 from typing import Any, Dict, Callable, Sequence, Optional, List, Tuple, Iterable, Union
 from weakref import WeakSet
 from dataclasses import dataclass
+import types
 
 from .ex_event_base import ExecutorEvent
 from .executor import ExecutionEngine
@@ -54,7 +55,7 @@ def _initialize_thread_patching():
 # Call this function to initialize the thread patching
 if not hasattr(threading.Thread, '_monkey_patched_start'):
     _python_debugger_active, _within_executor_threads, _original_thread_start = _initialize_thread_patching()
-    _no_executor_attrs = ['_name', '_no_executor', '_no_executor_attrs']
+    _no_executor_attrs = ['_name', '_no_executor', '_no_executor_attrs', '_thread_name']
 
 
 @dataclass
@@ -108,14 +109,29 @@ class DeviceMetaclass(ABCMeta):
         if hasattr(attr_value, '_wrapped_for_executor'):
             return attr_value
 
+        # Add this block to handle properties
+        if isinstance(attr_value, property):
+            return property(
+                fget=DeviceMetaclass.wrap_for_executor(f"{attr_name}_getter", attr_value.fget) if attr_value.fget else None,
+                fset=DeviceMetaclass.wrap_for_executor(f"{attr_name}_setter", attr_value.fset) if attr_value.fset else None,
+                fdel=DeviceMetaclass.wrap_for_executor(f"{attr_name}_deleter", attr_value.fdel) if attr_value.fdel else None,
+                doc=attr_value.__doc__
+            )
+
         @wraps(attr_value)
         def wrapper(self: 'Device', *args: Any, **kwargs: Any) -> Any:
             if attr_name in _no_executor_attrs or self._no_executor:
                 return attr_value(self, *args, **kwargs)
             if DeviceMetaclass._is_reroute_exempted_thread():
                 return attr_value(self, *args, **kwargs)
+            # check for method-level preferred thread name first, then class-level
+            thread_name = getattr(attr_value, '_thread_name', None) or getattr(self, '_thread_name', None)
+            if ExecutionEngine.on_any_executor_thread():
+                # check for device-level preferred thread
+                if thread_name is None or threading.current_thread().name == thread_name:
+                    return attr_value(self, *args, **kwargs)
             event = MethodCallEvent(method_name=attr_name, args=args, kwargs=kwargs, instance=self)
-            return ExecutionEngine.get_instance().submit(event).await_execution()
+            return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
 
         wrapper._wrapped_for_executor = True
         return wrapper
@@ -133,8 +149,7 @@ class DeviceMetaclass(ABCMeta):
 
     @staticmethod
     def _is_reroute_exempted_thread() -> bool:
-        return (DeviceMetaclass.is_debugger_thread() or ExecutionEngine.on_any_executor_thread() or
-                threading.current_thread() in _within_executor_threads)
+        return (DeviceMetaclass.is_debugger_thread() or threading.current_thread() in _within_executor_threads)
 
     @staticmethod
     def find_in_bases(bases, method_name):
@@ -147,10 +162,12 @@ class DeviceMetaclass(ABCMeta):
         new_attrs = {}
         for attr_name, attr_value in attrs.items():
             if not attr_name.startswith('_'):
-                if callable(attr_value):
+                if isinstance(attr_value, property):  # Property
                     new_attrs[attr_name] = mcs.wrap_for_executor(attr_name, attr_value)
-                else:
-                    pass
+                elif callable(attr_value):  # Regular method
+                    new_attrs[attr_name] = mcs.wrap_for_executor(attr_name, attr_value)
+                else:  # Attribute
+                    new_attrs[attr_name] = attr_value
             else:
                 new_attrs[attr_name] = attr_value
 
@@ -174,18 +191,26 @@ class DeviceMetaclass(ABCMeta):
                 return object.__getattribute__(self, name)
             if DeviceMetaclass._is_reroute_exempted_thread():
                 return getattribute_with_fallback(self, name)
-            else:
-                event = GetAttrEvent(attr_name=name, instance=self, method=getattribute_with_fallback)
-                return ExecutionEngine.get_instance().submit(event).await_execution()
+            thread_name = getattr(self, '_thread_name', None)
+            if ExecutionEngine.on_any_executor_thread():
+                # check for device-level preferred thread
+                if thread_name is None or threading.current_thread().name == thread_name:
+                    return getattribute_with_fallback(self, name)
+            event = GetAttrEvent(attr_name=name, instance=self, method=getattribute_with_fallback)
+            return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
 
         def __setattr__(self: 'Device', name: str, value: Any) -> None:
             if name in _no_executor_attrs or self._no_executor:
-                original_setattr(self, name, value)
-            elif DeviceMetaclass._is_reroute_exempted_thread():
-                original_setattr(self, name, value)
-            else:
-                event = SetAttrEvent(attr_name=name, value=value, instance=self, method=original_setattr)
-                ExecutionEngine.get_instance().submit(event).await_execution()
+                return original_setattr(self, name, value)
+            if DeviceMetaclass._is_reroute_exempted_thread():
+                return original_setattr(self, name, value)
+            thread_name = getattr(self, '_thread_name', None)
+            if ExecutionEngine.on_any_executor_thread():
+                # Check for device-level preferred thread
+                if thread_name is None or threading.current_thread().name == thread_name:
+                    return original_setattr(self, name, value)
+            event = SetAttrEvent(attr_name=name, value=value, instance=self, method=original_setattr)
+            ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
 
         new_attrs['__getattribute__'] = __getattribute__
         new_attrs['__setattr__'] = __setattr__

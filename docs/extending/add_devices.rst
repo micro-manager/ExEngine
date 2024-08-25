@@ -199,6 +199,17 @@ then open ``_build/html/index.html`` in a web browser to view the documentation.
 Advanced Topics
 -----------------
 
+Thread Safety and Execution Control
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ExEngine provides powerful threading capabilities for device implementations, ensuring thread safety and allowing fine-grained control over execution threads. Key features include:
+
+Automatic thread safety for device methods and attribute access.
+The ability to specify execution threads for devices, methods, or events using the @on_thread decorator.
+Options to bypass the executor for non-hardware-interacting methods or attributes.
+
+For a comprehensive guide on ExEngine's threading capabilities, including detailed explanations and usage examples, please refer to the :ref:threading section.
+
+
 What inheritance from ``Device`` provides
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
