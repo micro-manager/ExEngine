@@ -12,7 +12,7 @@ build:
   tools:
     python: "3.10"
   jobs:
-    post_checkout:
+    post_checkout: # this deals with git LFS and the figures
       # Download and uncompress the binary
       # https://git-lfs.github.com/
       - wget https://github.com/git-lfs/git-lfs/releases/download/v3.1.4/git-lfs-linux-amd64-v3.1.4.tar.gz
@@ -33,4 +33,8 @@ build:
 # Optionally specify the Python version used by Read the Docs
 python:
   install:
-    - requirements: docs/requirements.txt  
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+    - requirements: docs/requirements.txt

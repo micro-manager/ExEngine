@@ -6,6 +6,12 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+# Somehow this fixes the docs when built on readthedocs?
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))
+
+
 project = 'ExEngine'
 copyright = '2024, Henry Pinkard'
 author = 'Henry Pinkard'
