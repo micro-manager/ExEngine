@@ -222,28 +222,28 @@ def test_device_threadpool_executor(execution_engine):
 #######################################################
 # Tests for other ExecutionEngine functionalities
 #######################################################
+
+class SyncEvent(ExecutorEvent):
+
+    def __init__(self, start_event, finish_event):
+        super().__init__()
+        self.executed = False
+        self.executed_time = None
+        self.execute_count = 0
+        self.executed_thread_name = None
+        self.start_event = start_event
+        self.finish_event = finish_event
+
+    def execute(self):
+        self.executed_thread_name = threading.current_thread().name
+        self.start_event.set()  # Signal that the execution has started
+        self.finish_event.wait()  # Wait for the signal to finish
+        self.executed_time = time.time()
+        self.execute_count += 1
+        self.executed = True
+
 def create_sync_event(start_event, finish_event):
-    event = MagicMock(spec=ExecutorEvent)
-    event._finished = False
-    event._initialized = False
-    event.num_retries_on_exception = 0
-    event.executed = False
-    event.executed_time = None
-    event.execute_count = 0
-    event.executed_thread_name = None
-    event._thread_name = None
-
-    def execute():
-        event.executed_thread_name = threading.current_thread().name
-        start_event.set()  # Signal that the execution has started
-        finish_event.wait()  # Wait for the signal to finish
-        event.executed_time = time.time()
-        event.execute_count += 1
-        event.executed = True
-
-    event.execute.side_effect = execute
-    event._post_execution = MagicMock()
-    return event
+    return SyncEvent(start_event, finish_event)
 
 
 def test_submit_single_event(execution_engine):
@@ -397,6 +397,44 @@ def test_single_execution_with_free_thread(execution_engine):
     assert event1.execute_count == 1
     assert event2.execute_count == 1
 
+#### Callable submission tests ####
+def test_submit_callable(execution_engine):
+    def simple_function():
+        return 42
+
+    future = execution_engine.submit(simple_function)
+    result = future.await_execution()
+    assert result == 42
+
+def test_submit_lambda(execution_engine):
+    future = execution_engine.submit(lambda: "Hello, World!")
+    result = future.await_execution()
+    assert result == "Hello, World!"
+
+def test_class_method(execution_engine):
+    class TestClass:
+        def test_method(self):
+            return "Test method executed"
+
+    future = execution_engine.submit(TestClass().test_method)
+    result = future.await_execution()
+    assert result == "Test method executed"
+
+def test_submit_mixed(execution_engine):
+    class TestEvent(ExecutorEvent):
+        def execute(self):
+            return "Event executed"
+
+    futures = execution_engine.submit([TestEvent(), lambda: 42, lambda: "Lambda"])
+    results = [future.await_execution() for future in futures]
+    assert results == ["Event executed", 42, "Lambda"]
+
+def test_submit_invalid(execution_engine):
+    with pytest.raises(TypeError):
+        execution_engine.submit(lambda x: x + 1)  # Callable with arguments should raise TypeError
+
+    with pytest.raises(TypeError):
+        execution_engine.submit("Not a callable")  # Non-callable, non-ExecutorEvent should raise TypeError
 
 #######################################################
 # Tests for named thread functionalities ##############

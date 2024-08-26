@@ -8,9 +8,10 @@ import warnings
 import traceback
 from typing import Union, Iterable, List, Callable, Any, Type
 import queue
+import inspect
 
 from .notification_base import Notification, NotificationCategory
-from .ex_event_base import ExecutorEvent
+from .ex_event_base import ExecutorEvent, AnonymousCallableEvent
 from .ex_future import ExecutionFuture
 
 from .data_handler import DataHandler
@@ -178,31 +179,22 @@ class ExecutionEngine:
                 raise MultipleExceptions(exceptions)
 
     def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent]], thread_name=None,
-               transpile: bool = True, prioritize: bool = False, use_free_thread: bool = False,
-               data_handler: DataHandler = None) -> Union[ExecutionFuture, Iterable[ExecutionFuture]]:
+               prioritize: bool = False, use_free_thread: bool = False) -> Union[ExecutionFuture, Iterable[ExecutionFuture]]:
         """
-        Submit one or more acquisition events for execution.
+        Submit one or more acquisition events or callable objects for execution.
 
-        This method handles the submission of acquisition events to be executed on active threads. It provides
-        options for event prioritization, thread allocation, and performance optimization.
+        This method handles the submission of acquisition events or callable objects to be executed on active threads.
+        It provides options for event prioritization, thread allocation, and performance optimization.
 
-        Execution Behavior:
-        - By default, all events are executed on a single thread in submission order to prevent concurrency issues.
-        - Events can be parallelized across different threads using the 'use_free_thread' parameter.
-        - Priority execution can be requested using the 'prioritize' parameter.
 
         Parameters:
         -----------
-        event_or_events : Union[ExecutorEvent, Iterable[ExecutorEvent]]
-            A single ExecutorEvent or an iterable of ExecutorEvents to be submitted.
+        event_or_events : Union[ExecutorEvent, Iterable[ExecutorEvent], Callable[[], Any], Iterable[Callable[[], Any]]]
+            A single ExecutorEvent, an iterable of ExecutorEvents, or a callable object with no arguments.
 
         thread_name : str, optional (default=None)
             Name of the thread to submit the event to. If None, the thread is determined by the
             'use_free_thread' parameter.
-
-        transpile : bool, optional (default=True)
-            If True and multiple events are submitted, attempt to optimize them for better performance.
-            This may result in events being combined or reorganized.
 
         prioritize : bool, optional (default=False)
             If True, execute the event(s) before any others in the queue on its assigned thread.
@@ -213,32 +205,37 @@ class ExecutionEngine:
             Useful for operations like cancelling or stopping events awaiting signals.
             If False, execute on the primary thread.
 
-        data_handler : DataHandler, optional (default=None)
-            Object to handle data and metadata produced by DataProducingExecutorEvents.
-
         Returns:
         --------
         Union[AcquisitionFuture, Iterable[AcquisitionFuture]]
-            For a single event: returns a single AcquisitionFuture.
-            For multiple events: returns an Iterable of AcquisitionFutures.
-            Note: The number of returned futures may differ from the input if transpilation occurs.
+            For a single event or callable: returns a single ExecutionFuture.
+            For multiple events: returns an Iterable of ExecutionFutures.
 
         Notes:
         ------
-        - Transpilation may optimize multiple events, potentially altering their number or structure.
         - Use 'prioritize' for critical system changes that should occur before other queued events.
         - 'use_free_thread' is essential for operations that need to run independently, like cancellation events.
+        - If a callable object with no arguments is submitted, it will be automatically wrapped in a AnonymousCallableEvent.
         """
-        if isinstance(event_or_events, ExecutorEvent):
+        # Auto convert single callable to event
+        if callable(event_or_events) and len(inspect.signature(event_or_events).parameters) == 0:
+            event_or_events = AnonymousCallableEvent(event_or_events)
+
+        if isinstance(event_or_events, (ExecutorEvent, Callable)):
             event_or_events = [event_or_events]
 
-        if transpile:
-            # TODO: transpile events
-            pass
+        events = []
+        for event in event_or_events:
+            if callable(event):
+                events.append(AnonymousCallableEvent(event))
+            elif isinstance(event, ExecutorEvent):
+                events.append(event)
+            else:
+                raise TypeError(f"Invalid event type: {type(event)}. "
+                                f"Expected ExecutorEvent or callable with no arguments.")
 
-        futures = tuple(self._submit_single_event(event, thread_name or getattr(event_or_events[0], '_thread_name', None),
-                                                  use_free_thread, prioritize)
-                   for event in event_or_events)
+        futures = tuple(self._submit_single_event(event, thread_name or getattr(event, '_thread_name', None),
+                                                  use_free_thread, prioritize) for event in events)
         if len(futures) == 1:
             return futures[0]
         return futures
