@@ -19,17 +19,23 @@ class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
     """
     Readout one or more blocks of data (e.g. images) and associated metadata from a Detector device (e.g. a camera)
 
-    :param data_coordinate_iterator (Iterable[DataCoordinates]): An iterator or list of DataCoordinates objects, which
-                specify the coordinates of the data that will be read out, should be able to provide at least num_images
-                elements (or indefinitely if num_images is None)
-    :param detector (Union[Detector, str]): The Detector object to read data from. Can be the object itself,
+    Parameters:
+    ------------
+    data_coordinate_iterator: Iterable[DataCoordinates]
+            An iterator or list of DataCoordinates objects, which
+            specify the coordinates of the data that will be read out, should be able to provide at least num_images
+            elements (or indefinitely if num_images is None)
+    detector: Union[Detector, str]
+            The Detector object to read data from. Can be the object itself,
             or the name of the object in the ExecutionEngine's device registry.
-    :param num_blocks (int): The number of pieces of data (e.g. images) to read out. If None, the readout will continue until
+    num_blocks: int
+            The number of pieces of data (e.g. images) to read out. If None, the readout will continue until
             the data_coordinate_iterator is exhausted or the Detector is stopped and no more images are available.
-    :param stop_on_empty (bool): If True, the readout will stop when the detector is stopped when there is no data
+    stop_on_empty: bool
+            (Experimental) If True, the readout will stop when the detector is stopped when there is no data
             available to read
-    :param data_handler (DataHandler): The DataHandler object that will handle the data read out by this event
-
+    data_handler: DataHandler
+            The DataHandler object that will handle the data read out by this event
     """
     notification_types = [DataAcquiredNotification]
 
