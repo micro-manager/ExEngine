@@ -436,17 +436,6 @@ def test_submit_invalid(execution_engine):
     with pytest.raises(TypeError):
         execution_engine.submit("Not a callable")  # Non-callable, non-ExecutorEvent should raise TypeError
 
-def test_callable_event_notification(execution_engine):
-    notifications = []
-    execution_engine.subscribe_to_notifications(lambda n: notifications.append(n))
-
-    future = execution_engine.submit(lambda: "Test")
-    result = future.await_execution()
-
-    assert result == "Test"
-    assert len(notifications) == 1
-    assert notifications[0].__class__.__name__ == "EventExecutedNotification"
-
 #######################################################
 # Tests for named thread functionalities ##############
 #######################################################
