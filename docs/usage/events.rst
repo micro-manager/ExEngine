@@ -4,37 +4,50 @@
 Events
 ======
 
+Events in ExEngine are the fundamental units of experimental workflows. They represent discrete tasks or operations that can be submitted to the ExecutionEngine for execution. Events provide a flexible and modular way to construct complex experimental workflows, ranging from simple hardware commands to sophisticated multi-step procedures that may involve data analysis.
 
-Events in ExEngine are the fundamental units of experimental workflows. They represent discrete tasks or operations that can be submitted to the ExecutionEngine for processing. Events provide a flexible and modular way to construct complex experimental workflows, ranging from simple hardware commands to sophisticated multi-step procedures that may involve data analysis.
+ExEngine supports two types of events:
 
-The work of an event is fully contained in its execute method. This method can be called directly to run the event on the current thread:
+- ``Callable`` objects (methods/functions/lambdas) for simple tasks
+- ``ExecutorEvent`` subclasses for complex operations
 
+
+Simple Events: Callable Objects
+-------------------------------
+For straightforward tasks, you can submit a callable object directly:
+
+.. code-block:: python
+
+    def simple_task():
+        do_something()
+
+    engine.submit(simple_task)
+
+
+
+ExecutorEvent Objects
+----------------------
+
+For more complex operations, use ExecutorEvent subclasses. These provide additional capabilities like notifications and data handling:
 
 .. code-block:: python
 
     from exengine.events.positioner_events import SetPosition2DEvent
 
-    # Create an event
     move_event = SetPosition2DEvent(device=xy_stage, position=(10.0, 20.0))
+    future = engine.submit(move_event)
 
-    # Execute the event directly on the current thread
-    move_event.execute()
 
-More commonly, events are submitted to the execution engine to be executed asynchronously:
 
 .. code-block:: python
 
-    from exengine import ExecutionEngine
-
-    engine = ExecutionEngine.get_instance()
-
-    # Submit the event to the execution engine
+    # Asynchronous execution
     future = engine.submit(move_event)
     # This returns immediately, allowing other operations to continue
 
+The power of this approach lies in its ability to separate the definition of what takes place from the details of how it is executed. While the event defines the operation to be performed, the execution engine manages the scheduling and execution of events across multiple threads. This separation allows for complex workflows to be built up from simple, reusable components, while the execution engine manages the details of scheduling execution, and error handling.
 
-
-The power of this approach lies in its ability to separate the definition of what takes place from the details of how it is executed. While the event defines the operation to be performed, the execution engine manages the scheduling and execution of events across multiple threads. This separation allows for complex workflows to be built up from simple, reusable components, while the execution engine manages the details of scheduling and resource allocation.
+A list of available events can be found in the :ref:`standard_events` section.
 
 Monitoring Event Progress
 --------------------------

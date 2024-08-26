@@ -52,7 +52,9 @@ Micro-Manager Devices
     :members:
 
 
-Implemented Events
+.. _standard_events:
+
+Standard Events
 ==================
 
 Detector Events

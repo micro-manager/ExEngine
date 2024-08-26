@@ -1,12 +1,12 @@
 import warnings
-from typing import Optional, Any,ClassVar, Type, List, Dict, Union, Iterable
+from typing import Optional, Any,ClassVar, Type, List, Dict, Union, Iterable, Callable
 from abc import ABC, abstractmethod, ABCMeta
 import weakref
+import inspect
+from functools import partial
+
 from .notification_base import Notification
-
 from .notification_base import EventExecutedNotification
-
-# if TYPE_CHECKING: # avoid circular imports
 from .ex_future import ExecutionFuture
 
 
@@ -103,8 +103,30 @@ class ExecutorEvent(ABC, metaclass=_ExecutorEventMeta):
         if self._future_weakref is None:
             raise Exception("Future not set for event")
         future = self._future_weakref()
-        if future is not None:
-            future._notify_execution_complete(return_value, exception)
         self.finished = True
         self._engine.publish_notification(EventExecutedNotification(payload=exception))
+        if future is not None:
+            future._notify_execution_complete(return_value, exception)
 
+
+
+class AnonymousCallableEvent(ExecutorEvent):
+    """
+    An event that wraps a callable object and calls it when the event is executed.
+
+    The callable object should take no arguments and optionally return a value.
+    """
+    def __init__(self, callable_obj: Callable[[], Any]):
+        super().__init__()
+        self.callable_obj = callable_obj
+        # Check if the callable has no parameters (except for 'self' in case of methods)
+        if not callable(callable_obj):
+            raise TypeError("Callable object must be a function or method")
+        signature = inspect.signature(callable_obj)
+        if not all(param.default != param.empty or param.kind == param.VAR_POSITIONAL for param in
+               signature.parameters.values()):
+            raise TypeError("Callable object must take no arguments")
+
+
+    def execute(self):
+        return self.callable_obj()
