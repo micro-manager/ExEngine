@@ -10,7 +10,7 @@ from exengine.kernel.data_handler import DataHandler
 from exengine import ExecutionEngine
 
 
-class DataAcquired(Notification[DataCoordinates]):
+class DataAcquiredNotification(Notification[DataCoordinates]):
     category = NotificationCategory.Data
     description = "Data has been acquired by a camera or other data-producing device and is now available"
     # payload is the data coordinates of the acquired data
@@ -19,22 +19,24 @@ class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
     """
     Readout one or more blocks of data (e.g. images) and associated metadata from a Detector device (e.g. a camera)
 
-    Args:
-        data_coordinate_iterator (Iterable[DataCoordinates]): An iterator or list of DataCoordinates objects, which
-            specify the coordinates of the data that will be read out, should be able to provide at least num_images
-            elements (or indefinitely if num_images is None)
-        detector (Union[Detector, str]): The Detector object to read data from. Can be the object itself,
+    :param data_coordinate_iterator (Iterable[DataCoordinates]): An iterator or list of DataCoordinates objects, which
+                specify the coordinates of the data that will be read out, should be able to provide at least num_images
+                elements (or indefinitely if num_images is None)
+    :param detector (Union[Detector, str]): The Detector object to read data from. Can be the object itself,
             or the name of the object in the ExecutionEngine's device registry.
-        num_blocks (int): The number of pieces of data (e.g. images) to read out. If None, the readout will continue until
+    :param num_blocks (int): The number of pieces of data (e.g. images) to read out. If None, the readout will continue until
             the data_coordinate_iterator is exhausted or the Detector is stopped and no more images are available.
-        stop_on_empty (bool): If True, the readout will stop when the detector is stopped when there is no data
+    :param stop_on_empty (bool): If True, the readout will stop when the detector is stopped when there is no data
             available to read
-        data_handler (DataHandler): The DataHandler object that will handle the data read out by this event
-    """
-    notification_types = [DataAcquired]
+    :param data_handler (DataHandler): The DataHandler object that will handle the data read out by this event
 
-    def __init__(self, data_coordinates_iterator: Union[DataCoordinatesIterator,
-                                                       Iterable[DataCoordinates], Iterable[Dict[str, Union[int, str]]]],
+    """
+    notification_types = [DataAcquiredNotification]
+
+    def __init__(self,
+                 data_coordinates_iterator: Union[DataCoordinatesIterator,
+                                                  Iterable[DataCoordinates],
+                                                  Iterable[Dict[str, Union[int, str]]]],
                  detector: Optional[Union[Detector, str]] = None,
                  data_handler: DataHandler = None,
                  num_blocks: int = None,
@@ -62,7 +64,7 @@ class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
                     return
                 elif image is not None:
                     self.put_data(image_coordinates, image, metadata)
-                    self.publish_notification(DataAcquired(image_coordinates))
+                    self.publish_notification(DataAcquiredNotification(image_coordinates))
                     break
 
 

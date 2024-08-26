@@ -120,16 +120,16 @@ class ExecutionFuture:
         this function is called before the data is acquired, the data may have already been saved and not readily
         available in RAM. In this case, the data will be read from disk.
 
-        Args:
-            coordinates: A single DataCoordinates object/dictionary, or Sequence (i.e. list or tuple) of
-            DataCoordinates objects/dictionaries. If None, this function will block until the next data is
-            acquired/processed/saved
-            return_data: whether to return the data
-            return_metadata: whether to return the metadata
-            processed: whether to wait until data has been processed. If not data processor is in use, then this
-            parameter has no effect
-            stored: whether to wait for data that has been stored. If the call to await data occurs before the data
-            gets passed off to the storage_backends class, then it will be stored in memory and returned immediately without having to retrieve
+
+        :param coordinates: A single DataCoordinates object/dictionary, or Sequence (i.e. list or tuple) of
+                DataCoordinates objects/dictionaries. If None, this function will block until the next data is
+                acquired/processed/saved
+        :param return_data: whether to return the data
+        :param return_metadata: whether to return the metadata
+        :param processed: whether to wait until data has been processed. If not data processor is in use, then this
+                parameter has no effect
+        :param stored: whether to wait for data that has been stored. If the call to await data occurs before the data
+                gets passed off to the storage_backends class, then it will be stored in memory and returned immediately without having to retrieve
         """
 
         coordinates_iterator = DataCoordinatesIterator.create(coordinates)
