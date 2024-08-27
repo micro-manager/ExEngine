@@ -6,6 +6,6 @@
    
 <img src="docs/_static/exengine_bigpicture.svg" width="600">
 
-ExEngine is a pure Python toolkit for building microscopy and laboratory hardware control software. Unlike application-specific software that provide tightly integrated device access, control logic, and user interfaces,ExEngine is a flexible intermediary which enables mixing and matching of components from different frameworks within a single application. This approach allows researchers to build custom software that meets their specific needs, without being limited to vertically integrated software stacks.
+ExEngine is a pure Python toolkit for building microscopy and laboratory hardware control software. Unlike application-specific software that provide tightly integrated device access, control logic, and user interfaces, ExEngine is a flexible intermediary which enables mixing and matching of components from different frameworks within a single application. This approach allows researchers to build custom software that meets their specific needs, without being locked into a specific vertically-integrated software ecosystem.
 
 For me information, visit the documentation at [https://exengine.readthedocs.io](https://exengine.readthedocs.io).
