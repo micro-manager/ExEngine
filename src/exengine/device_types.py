@@ -3,9 +3,9 @@ Base classes for device_implementations that can be used by the execution engine
 """
 
 from abc import abstractmethod
-from typing import Tuple
-import numpy as np
+from typing import Tuple, Any
 from .kernel.device import Device
+import numpy.typing as npt
 
 
 # TODO: could replace hard coded classes with
@@ -31,7 +31,7 @@ class TriggerableSingleAxisPositioner(SingleAxisPositioner):
     A special type of positioner that can accept a sequence of positions to move to when provided external TTL triggers
     """
     @abstractmethod
-    def set_position_sequence(self, positions: np.ndarray) -> None:
+    def set_position_sequence(self, positions: npt.NDArray[Any]) -> None:
         ...
 
     @abstractmethod
@@ -54,13 +54,13 @@ class DoubleAxisPositioner(Device):
             ...
 
         @abstractmethod
-        def get_position(self) -> Tuple[float, float]:
+        def get_position(self) -> "Tuple[float, float]":
             ...
 
 class TriggerableDoubleAxisPositioner(DoubleAxisPositioner):
 
         @abstractmethod
-        def set_position_sequence(self, positions: np.ndarray) -> None:
+        def set_position_sequence(self, positions: npt.NDArray[Any]) -> None:
             ...
 
         @abstractmethod
@@ -101,7 +101,7 @@ class Detector(Device):
         ...
 
     @abstractmethod
-    def pop_data(self, timeout=None) -> Tuple[np.ndarray, dict]:
+    def pop_data(self, timeout=None) -> Tuple[npt.NDArray[Any], dict[str, Any]]:
         """
         Get the next image and metadata from the camera buffer. If timeout is None, this function will block until
         an image is available. If timeout is a number, this function will block for that many seconds before returning

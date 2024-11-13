@@ -6,7 +6,7 @@ from collections import deque
 from typing import Deque
 import warnings
 import traceback
-from typing import Union, Iterable, List, Callable, Any, Type
+from typing import Union, Iterable, Callable, Type
 import queue
 import inspect
 
@@ -14,13 +14,11 @@ from .notification_base import Notification, NotificationCategory
 from .ex_event_base import ExecutorEvent, AnonymousCallableEvent
 from .ex_future import ExecutionFuture
 
-from .data_handler import DataHandler
-
 _MAIN_THREAD_NAME = 'MainExecutorThread'
 _ANONYMOUS_THREAD_NAME = 'AnonymousExecutorThread'
 
 class MultipleExceptions(Exception):
-    def __init__(self, exceptions: List[Exception]):
+    def __init__(self, exceptions: list[Exception]):
         self.exceptions = exceptions
         messages = [f"{type(e).__name__}: {''.join(traceback.format_exception(type(e), e, e.__traceback__))}" for e in exceptions]
         super().__init__("Multiple exceptions occurred:\n" + "\n".join(messages))
@@ -41,8 +39,8 @@ class ExecutionEngine:
         self._exceptions = queue.Queue()
         self._devices = {}
         self._notification_queue = queue.Queue()
-        self._notification_subscribers: List[Callable[[Notification], None]] = []
-        self._notification_subscriber_filters: List[Union[NotificationCategory, Type]] = []
+        self._notification_subscribers: list[Callable[[Notification], None]] = []
+        self._notification_subscriber_filters: list[Union[NotificationCategory, Type]] = []
         self._notification_lock = threading.Lock()
         self._notification_thread = None
         self._shutdown_event = threading.Event()

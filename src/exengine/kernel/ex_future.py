@@ -1,10 +1,8 @@
-from typing import Union, Optional, Any, Dict, Tuple, Sequence, Set, TypeVar, Type, Iterable
+from typing import Union, Optional, Any, Dict, Tuple, Sequence, Set
 import threading
 import warnings
 from .data_coords import DataCoordinates, DataCoordinatesIterator
 from .notification_base import Notification
-import numpy as np
-from dataclasses import field
 
 
 from typing import TYPE_CHECKING

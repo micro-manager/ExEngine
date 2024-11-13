@@ -1,8 +1,6 @@
 import pytest
 import time
-import os
 import itertools
-from mmpycorex import create_core_instance, terminate_core_instances, get_default_install_location
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
@@ -33,7 +31,7 @@ def capture_images(num_images, executor, camera):
 
     executor.submit([start_capture_event, readout_images_event])
 
-    while not {'time': num_images - 1} in storage:
+    while {'time': num_images - 1} not in storage:
         time.sleep(1)
 
     data_handler.finish()
@@ -60,11 +58,11 @@ def test_continuous_capture(executor, camera):
     storage = NDRAMStorage()
     data_handler = DataHandler(storage=storage)
 
-    start_capture_event = StartContinuousCapture(camera=camera)
+    start_capture_event = StartContinuousCapture(detector=camera)
     readout_images_event = ReadoutData(detector=camera,
                                        data_coordinates_iterator=(DataCoordinates(time=t) for t in itertools.count()),
                                        data_handler=data_handler)
-    stop_capture_event = StopCapture(camera=camera)
+    stop_capture_event = StopCapture(detector=camera)
 
     _, readout_future, _ = executor.submit([start_capture_event, readout_images_event, stop_capture_event])
     time.sleep(2)

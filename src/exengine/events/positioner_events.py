@@ -1,9 +1,12 @@
-from typing import List, Union, Tuple, Optional, SupportsFloat
-import numpy as np
+from typing import Union, Tuple, Optional, SupportsFloat, TYPE_CHECKING
+import numpy.typing as npt
 
 from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.device_types import (DoubleAxisPositioner, SingleAxisPositioner,
                           TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 class SetPosition2DEvent(ExecutorEvent):
@@ -23,7 +26,7 @@ class SetTriggerable2DPositionsEvent(ExecutorEvent):
     Set the position of a movable device
     """
 
-    def __init__(self, device: Optional[TriggerableDoubleAxisPositioner], positions: Union[List[Tuple[float, float]], np.ndarray]):
+    def __init__(self, device: Optional[TriggerableDoubleAxisPositioner], positions: Union[list[Tuple[float, float]], npt.NDArray["Any"]]):
         super().__init__()
         self.device = device
         self.positions = positions
@@ -49,7 +52,7 @@ class SetTriggerable1DPositionsEvent(ExecutorEvent):
     Send a sequence of positions to a 1D positioner that will be triggered by TTL pulses
     """
 
-    def __init__(self, device: Optional[TriggerableSingleAxisPositioner], positions: Union[List[float], np.ndarray]):
+    def __init__(self, device: Optional[TriggerableSingleAxisPositioner], positions: Union[list[float], npt.NDArray["Any"]]):
         super().__init__()
         self.device = device
         self.positions = positions

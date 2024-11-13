@@ -5,11 +5,14 @@ Implementation of Micro-Manager device_implementations.py in terms of the AcqEng
 from exengine.device_types import (Detector, TriggerableSingleAxisPositioner, TriggerableDoubleAxisPositioner)
 from exengine.kernel.device import Device
 from mmpycorex import Core
-import numpy as np
+import numpy.typing as npt
 import pymmcore
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Union, Iterable, Tuple
+from typing import Union, Iterable, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 
@@ -29,7 +32,7 @@ class MicroManagerDevice(Device):
         self._core_noexec = Core()
         if _validatename:
             loaded_devices = self._core_noexec.get_loaded_devices()
-            if name is not None and not name in loaded_devices:
+            if name is not None and name not in loaded_devices:
                 raise Exception(f'Device with name {name} not found')
             if name is None and len(loaded_devices) > 1:
                 raise ValueError("Multiple Stage device_implementations found, must specify device name")
@@ -73,7 +76,7 @@ class MicroManagerDevice(Device):
             print(f"Warning: Failed to retrieve device properties: {e}")
         return sorted(attributes)
 
-    def get_allowed_property_values(self, property_name: str) -> List[str]:
+    def get_allowed_property_values(self, property_name: str) -> list[str]:
         return self._core_noexec.get_allowed_property_values(self._device_name_noexec, property_name)
 
     def is_property_read_only(self, property_name: str) -> bool:
@@ -128,7 +131,7 @@ class MicroManagerSingleAxisStage(MicroManagerDevice, TriggerableSingleAxisPosit
     def get_position(self) -> float:
         return self._core_noexec.get_position(self._device_name_noexec)
 
-    def set_position_sequence(self, positions: np.ndarray) -> None:
+    def set_position_sequence(self, positions: npt.NDArray["Any"]) -> None:
         if not self._core_noexec.is_stage_sequenceable(self._device_name_noexec):
             raise ValueError("Stage does not support sequencing")
         max_length = self._core_noexec.get_stage_sequence_max_length(self._device_name_noexec)
@@ -175,7 +178,7 @@ class MicroManagerXYStage(MicroManagerDevice, TriggerableDoubleAxisPositioner):
     def get_position(self) -> Tuple[float, float]:
         return self._core_noexec.get_xy_position(self._device_name_noexec)
 
-    def set_position_sequence(self, positions: np.ndarray) -> None:
+    def set_position_sequence(self, positions: npt.NDArray["Any"]) -> None:
         if not self._core_noexec.is_xy_stage_sequenceable(self._device_name_noexec):
             raise ValueError("Stage does not support sequencing")
         max_length = self._core_noexec.get_xy_stage_sequence_max_length(self._device_name_noexec)
@@ -262,14 +265,14 @@ class MicroManagerCamera(MicroManagerDevice, Detector):
     def is_stopped(self) -> bool:
         return not self._core_noexec.is_sequence_running(self._device_name_noexec) and not self._snap_active
 
-    def pop_data(self, timeout=None) -> Tuple[np.ndarray, dict]:
+    def pop_data(self, timeout=None) -> Tuple[npt.NDArray["Any"], dict]:
         if self._frame_count != 1:
             md = pymmcore.Metadata()
             start_time = time.time()
             while True:
                 try:
                     pix = self._core_noexec.pop_next_image_md(0, 0, md)
-                except IndexError as e:
+                except IndexError:
                     pix = None
                 if pix is not None:
                     break

@@ -1,7 +1,7 @@
 import threading
 import queue
 from typing import Any, Dict, Tuple, Callable, Union, Optional
-import numpy as np
+import numpy.typing as npt
 from pydantic.types import JsonValue
 from dataclasses import dataclass
 
@@ -25,7 +25,7 @@ class _PeekableQueue(queue.Queue):
 # make a dataclass to hold the data, metadata, future, and boolean flag for whether the data has been processed
 @dataclass
 class _DataMetadataFutureHolder:
-    data: np.ndarray
+    data: npt.NDArray["Any"]
     metadata: Dict
     future: Optional["ExecutionFuture"]
     processed: bool = False
@@ -50,9 +50,9 @@ class DataHandler:
     # and may create another for processing data
 
     def __init__(self, storage: DataStorage,
-                 process_function: Callable[[DataCoordinates, np.ndarray, JsonValue],
-                                Optional[Union[DataCoordinates, np.ndarray, JsonValue,
-                                               Tuple[DataCoordinates, np.ndarray, JsonValue]]]] = None,
+                 process_function: Callable[[DataCoordinates, npt.NDArray["Any"], JsonValue],
+                                Optional[Union[DataCoordinates, npt.NDArray["Any"], JsonValue,
+                                               Tuple[DataCoordinates, npt.NDArray["Any"], JsonValue]]]] = None,
                  _executor=None):
         # delayed import to avoid circular imports
         if _executor is None:
@@ -176,7 +176,7 @@ class DataHandler:
             self._storage_thread.join()
 
     def get(self, coordinates: DataCoordinates, return_data=True, return_metadata=True, processed=None,
-            ) -> Optional[Tuple[np.ndarray, JsonValue]]:
+            ) -> Optional[Tuple[npt.NDArray["Any"], JsonValue]]:
         """
         Get an image and associated metadata. If they are present, either in the intake queue or the storage_backends queue
         (if it exists), return them. If not present, get them from the storage_backends object. If not present there, return None
@@ -203,7 +203,7 @@ class DataHandler:
         return data, metadata
 
 
-    def put(self, coordinates: Any, image: np.ndarray, metadata: Dict, execution_future: Optional["ExecutionFuture"]):
+    def put(self, coordinates: Any, image: npt.NDArray["Any"], metadata: Dict, execution_future: Optional["ExecutionFuture"]):
         """
         Hand off this image to the data handler. It will handle handoff to the storage_backends object and image processing
         if requested, as well as providing temporary access to the image and metadata as it passes through this

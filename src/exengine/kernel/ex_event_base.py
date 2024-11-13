@@ -1,9 +1,8 @@
 import warnings
-from typing import Optional, Any,ClassVar, Type, List, Dict, Union, Iterable, Callable
+from typing import Optional, Any, ClassVar, Type, Callable
 from abc import ABC, abstractmethod, ABCMeta
 import weakref
 import inspect
-from functools import partial
 
 from .notification_base import Notification
 from .notification_base import EventExecutedNotification
@@ -41,7 +40,7 @@ class _ExecutorEventMeta(ABCMeta):
 class ExecutorEvent(ABC, metaclass=_ExecutorEventMeta):
     # Base events just have an event executed event. Subclasses can also add their own lists
     # of notifications types, and the metaclass will merge them into one big list
-    notification_types: ClassVar[List[Type[Notification]]] = [EventExecutedNotification]
+    notification_types: ClassVar[list[Type[Notification]]] = [EventExecutedNotification]
     _thread_name: Optional[str] = None
 
     def __init__(self, *args, **kwargs):
