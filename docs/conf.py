@@ -27,6 +27,7 @@ extensions = [
     'sphinx_togglebutton',
     'sphinx.ext.autodoc',
     'sphinx_autodoc_typehints',  # for better type hint support
+    'sphinxcontrib.googleanalytics'
 ]
 
 
@@ -48,3 +49,7 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+
+googleanalytics_id = 'G-VM4YE7745S'  # Replace with your actual GA4 measurement ID
+googleanalytics_enabled = True
