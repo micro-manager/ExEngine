@@ -5,7 +5,7 @@ from exengine.device_types import SingleAxisPositioner, Detector
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.events.property_events import (SetPropertiesEvent)
 from exengine.events.positioner_events import SetTriggerable1DPositionsEvent, SetPosition1DEvent
-from typing import Union, List, Iterable, Optional
+from typing import Union, Iterable, Optional
 import numpy as np
 import copy
 from itertools import chain
@@ -16,7 +16,7 @@ def flatten(lst):
 
 def multi_d_acquisition_events(
         num_time_points: int = None,
-        time_interval_s: Union[float, List[float]] = 0,
+        time_interval_s: Union[float, list[float]] = 0,
         z_start: float = None,
         z_end: float = None,
         z_step: float = None,
@@ -27,7 +27,7 @@ def multi_d_acquisition_events(
 
         xy_positions: Iterable = None,
         xyz_positions: Iterable = None,
-        position_labels: List[str] = None,
+        position_labels: list[str] = None,
         order: str = "tpcz",
         sequence: str = None, # should be "zc", "cz", "tzc", etc
         camera: Optional[Union[Detector, str]] = None,
@@ -64,7 +64,7 @@ def multi_d_acquisition_events(
 
     has_zsteps = False
     if any([z_start, z_step, z_end]):
-        if not None in [z_start, z_step, z_end]:
+        if None not in [z_start, z_step, z_end]:
             has_zsteps = True
         else:
             raise ValueError('All of z_start, z_step, and z_end must be provided')

@@ -2,10 +2,10 @@
 Protocol for storage_backends class that acquisitions ultimate write to where the acquisition data ultimately gets stored
 """
 
-from typing import Union, Dict
+from typing import Union, Dict, Any
 from abc import ABC
 from .data_coords import DataCoordinates
-import numpy as np
+import numpy.typing as npt
 from pydantic.types import JsonValue
 
 class DataStorage(ABC):
@@ -18,11 +18,11 @@ class DataStorage(ABC):
         """Check if item is in the container."""
         ...
 
-    def __getitem__(self, data_coordinates: Union[DataCoordinates, Dict[str, Union[int, str]]]) -> np.ndarray:
+    def __getitem__(self, data_coordinates: Union[DataCoordinates, Dict[str, Union[int, str]]]) -> npt.NDArray[Any]:
         """ Read a single data corresponding to the given coordinates. Same as get_data() """
         ...
 
-    def get_data(self, data_coordinates: Union[DataCoordinates, Dict[str, Union[int, str]]]) -> np.ndarray:
+    def get_data(self, data_coordinates: Union[DataCoordinates, Dict[str, Union[int, str]]]) -> npt.NDArray[Any]:
         """
         Read a single data corresponding to the given coordinates
         """
@@ -37,7 +37,7 @@ class DataStorage(ABC):
     # TODO: one alternative to saying you have to make the data immediately available is to have a callback
     #  that is called when the data is available. This would allow for disk-backed storage_backends to write the data
     #  to disk before calling the callback.
-    def put(self, data_coordinates: Union[DataCoordinates, Dict[str, Union[int, str]]], data: np.ndarray,
+    def put(self, data_coordinates: Union[DataCoordinates, Dict[str, Union[int, str]]], data: npt.NDArray[Any],
             metadata: JsonValue):
         """
         Add data and corresponding metadata to the dataset. Once this method has been called, the data and metadata
@@ -48,7 +48,7 @@ class DataStorage(ABC):
         ----------
         data_coordinates : DataCoordinates or dict
             Coordinates of the data
-        data : np.ndarray
+        data : npt.NDArray
             Data to be stored
         metadata : dict
             Metadata associated with the data
@@ -79,14 +79,14 @@ class DataStorage(ABC):
     #     pass
 
 #     @abstractmethod
-#     def get_image_coordinates_list(self) -> List[Dict[str, Union[int, str]]]:
+#     def get_image_coordinates_list(self) -> list[Dict[str, Union[int, str]]]:
 #         """
 #         Return a list of the coordinates (e.g. {'channel': 'DAPI', 'z': 0, 'time': 0}) of every image in the dataset
 #
 #         Returns
 #         -------
 #         list
-#             List of image coordinates
+#             list of image coordinates
 #         """
 #         pass
 #
@@ -117,7 +117,7 @@ class DataStorage(ABC):
 #
 #
 #     @abstractmethod
-#     def as_array(self, axes: List[str] = None, stitched: bool = False,
+#     def as_array(self, axes: list[str] = None, stitched: bool = False,
 #                  **kwargs: Union[int, str]) -> 'dask.array':
 #         """
 #         Create one big Dask array with last two axes as y, x and preceding axes depending on data.
@@ -132,7 +132,7 @@ class DataStorage(ABC):
 #         Parameters
 #         ----------
 #         axes : list, optional
-#             List of axes names over which to iterate and merge into a stacked array.
+#             list of axes names over which to iterate and merge into a stacked array.
 #             If None, all axes will be used in PTCZYX order (Default value = None).
 #         stitched : bool, optional
 #             If True and tiles were acquired in a grid, lay out adjacent tiles next to one another

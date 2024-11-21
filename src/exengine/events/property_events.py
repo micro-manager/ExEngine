@@ -1,5 +1,4 @@
-from typing import Any, Iterable, Tuple, Union, List
-from dataclasses import dataclass
+from typing import Any, Iterable, Tuple, Union
 from exengine.kernel.device import Device
 from exengine.kernel.executor import ExecutionEngine
 from exengine.kernel.ex_event_base import ExecutorEvent

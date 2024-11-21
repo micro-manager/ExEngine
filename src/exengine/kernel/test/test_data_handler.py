@@ -3,8 +3,9 @@ Unit tests for DataHandler.
 """
 import time
 import pytest
+import numpy.typing as npt
 import numpy as np
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
 from unittest.mock import Mock
 
 from exengine.kernel.executor import ExecutionEngine
@@ -12,17 +13,20 @@ from exengine.kernel.data_handler import DataHandler
 from exengine.kernel.data_coords import DataCoordinates
 from exengine.kernel.data_storage_base import DataStorage
 
+if TYPE_CHECKING:
+    from typing import Any
+
 class MockDataStorage(DataStorage):
     def __init__(self):
         self.data = {}
         self.metadata = {}
         self.finished = False
 
-    def put(self, coords: DataCoordinates, image: np.ndarray, metadata: Dict):
+    def put(self, coords: DataCoordinates, image: npt.NDArray["Any"], metadata: Dict):
         self.data[coords] = image
         self.metadata[coords] = metadata
 
-    def get_data(self, coords: DataCoordinates) -> np.ndarray:
+    def get_data(self, coords: DataCoordinates) -> npt.NDArray["Any"]:
         return self.data.get(coords)
 
     def get_metadata(self, coords: DataCoordinates) -> Dict:

@@ -1,16 +1,16 @@
 """
 Additional functionalities that can be added to ExecutorEvents
 """
-from dataclasses import dataclass, field
-from typing import Dict, Union, Iterable
+from typing import Dict, Union, Iterable, TYPE_CHECKING
 import itertools
 
-import numpy as np
-import warnings
+import numpy.typing as npt
 
 from .data_coords import DataCoordinates, DataCoordinatesIterator
 from .data_handler import DataHandler
 
+if TYPE_CHECKING:
+    from typing import Any
 
 
 class DataProducing:
@@ -37,7 +37,7 @@ class DataProducing:
         self._data_handler = data_handler
 
 
-    def put_data(self, data_coordinates: DataCoordinates, image: np.ndarray, metadata: Dict):
+    def put_data(self, data_coordinates: DataCoordinates, image: npt.NDArray["Any"], metadata: Dict):
         """
         Put data into the output queue
         """
