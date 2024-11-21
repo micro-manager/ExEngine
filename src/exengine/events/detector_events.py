@@ -12,7 +12,7 @@ from exengine import ExecutionEngine
 
 class DataAcquiredNotification(Notification[DataCoordinates]):
     category = NotificationCategory.Data
-    description = "Data has been acquired by a camera or other data-producing device and is now available"
+    description = "Data has been acquired by a detector or other data-producing device and is now available"
     # payload is the data coordinates of the acquired data
 
 class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
@@ -57,8 +57,8 @@ class ReadoutData(Stoppable, DataProducing, ExecutorEvent):
         # if detector is a string, look it up in the device registry
         self.detector: Detector = (self.detector if isinstance(self.detector, Detector)
                                       else ExecutionEngine.get_device(self.detector))
-        # TODO a more efficient way to do this is with callbacks from the camera
-        #  but this is not currently implemented, at least for Micro-Manager cameras
+        # TODO a more efficient way to do this is with callbacks from the detector
+        # but this is not currently implemented, at least for Micro-Manager cameras
         image_counter = itertools.count() if self.num_blocks is None else range(self.num_blocks)
         for image_number, image_coordinates in zip(image_counter, self.data_coordinate_iterator):
             while True:
@@ -108,19 +108,19 @@ class StartContinuousCapture(ExecutorEvent):
     Tell Detector device to start capturing images continuously, until a stop signal is received
     """
 
-    def __init__(self, camera: Optional[Detector] = None):
+    def __init__(self, detector: Optional[Detector] = None):
         super().__init__()
-        self.camera = camera
+        self.detector = detector
 
     def execute(self):
         """
-        Capture images from the camera
+        Capture images from the detector
         """
         try:
-            self.camera.arm()
-            self.camera.start()
+            self.detector.arm()
+            self.detector.start()
         except Exception as e:
-            self.camera.stop()
+            self.detector.stop()
             raise e
 
 class StopCapture(ExecutorEvent):
@@ -128,9 +128,9 @@ class StopCapture(ExecutorEvent):
     Tell Detector device to start capturing data continuously, until a stop signal is received
     """
 
-    def __init__(self, camera: Optional[Detector] = None):
+    def __init__(self, detector: Optional[Detector] = None):
         super().__init__()
-        self.camera = camera
+        self.detector = detector
 
     def execute(self):
-        self.camera.stop()
+        self.detector.stop()

@@ -3,10 +3,9 @@ Base class for all device_implementations that integrates with the execution eng
 """
 from abc import ABCMeta, ABC
 from functools import wraps
-from typing import Any, Dict, Callable, Sequence, Optional, List, Tuple, Iterable, Union
+from typing import Any, Dict, Callable, Sequence, Optional, Tuple, Iterable, Union
 from weakref import WeakSet
 from dataclasses import dataclass
-import types
 
 from .ex_event_base import ExecutorEvent
 from .executor import ExecutionEngine
@@ -270,7 +269,7 @@ class Device(ABC, metaclass=DeviceMetaclass):
         self._name = name
 
 
-    def get_allowed_property_values(self, property_name: str) -> Optional[List[str]]:
+    def get_allowed_property_values(self, property_name: str) -> Optional[list[str]]:
         return None  # By default, any value is allowed
 
     def is_property_read_only(self, property_name: str) -> bool:

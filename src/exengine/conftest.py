@@ -1,13 +1,5 @@
 import os
-import sys
-import shutil
-import warnings
-
 import pytest
-import re
-import glob
-
-import socket
 from mmpycorex import (download_and_install_mm, find_existing_mm_install, create_core_instance,
                        terminate_core_instances, get_default_install_location)
 

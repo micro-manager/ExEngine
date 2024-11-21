@@ -32,17 +32,17 @@ class Notification(ABC, Generic[TNotificationPayload]):
 
     For example:
 
-    @dataclass
-    class DataAcquired(Notification[DataCoordinates]):
-
-        # Define the category and description of the notification shared by all instances of this class
-        category = NotificationCategory.Data
-        description = "Data has been acquired by a camera or other data-producing device and is now available"
-
-        # payload is the data coordinates of the acquired
-
-    # Create an instance of the notification
-    notification = DataAcquired(payload=DataCoordinates(t=1, y=2, channel="DAPI"))
+    >>>    @dataclass
+    >>>    class DataAcquired(Notification[DataCoordinates]):
+    >>>
+    >>>        # Define the category and description of the notification shared by all instances of this class
+    >>>        category = NotificationCategory.Data
+    >>>        description = "Data has been acquired by a camera or other data-producing device and is now available"
+    >>>
+    >>>        # payload is the data coordinates of the acquired
+    >>>
+    >>>    # Create an instance of the notification
+    >>>    notification = DataAcquired(payload=DataCoordinates(t=1, y=2, channel="DAPI"))
 
     """
     timestamp: datetime = field(default_factory=datetime.now, init=False)

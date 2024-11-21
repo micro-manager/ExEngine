@@ -3,10 +3,8 @@ Tests with Micro-Manaager Demo config hardware for running multi-dimensional acq
 construction of low-level acquisition events
 """
 
-import os
 import numpy as np
 import pytest
-from mmpycorex import create_core_instance, terminate_core_instances, get_default_install_location
 from exengine.backends.micromanager.mm_device_implementations import (
     MicroManagerSingleAxisStage, MicroManagerDevice, MicroManagerXYStage, MicroManagerCamera
 )

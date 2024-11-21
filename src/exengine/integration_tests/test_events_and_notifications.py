@@ -5,9 +5,6 @@ import pytest
 from exengine import ExecutionEngine
 from exengine.kernel.ex_event_base import ExecutorEvent
 from exengine.kernel.notification_base import Notification, NotificationCategory
-from dataclasses import dataclass
-from typing import List
-import time
 
 
 class TestNotification(Notification[str]):
@@ -25,7 +22,7 @@ class YetAnotherTestNotification(Notification[float]):
 class NotificationEmittingEvent(ExecutorEvent):
     notification_types = [TestNotification, AnotherTestNotification, YetAnotherTestNotification]
 
-    def __init__(self, notifications_to_emit: List[Notification]):
+    def __init__(self, notifications_to_emit: list[Notification]):
         super().__init__()
         self.notifications_to_emit = notifications_to_emit
 
