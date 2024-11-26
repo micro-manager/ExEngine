@@ -108,15 +108,11 @@ def register(engine: ExecutionEngine, id: str, obj: object):
         all_dict.update(annotations)
 
     # create the wrapper class
-    class_dict = {
-        '_device': obj,
-    }
-    for n, a in all_dict.items():
-        if n.startswith('_'):
+    class_dict = {}
+    for name, attribute in all_dict.items():
+        if name.startswith('_'):
             continue  # skip private attributes
-        name = n # capture name
-        attribute = a
-        print(name)
+
         if inspect.isfunction(attribute):
             def method(self, *args, _method=attribute, **kwargs):
                 print(f"Calling {_method}")
