@@ -1,9 +1,11 @@
 import inspect
+import threading
 
 import pytest
 
 from exengine import ExecutionEngine
-from exengine.kernel.device import Device
+from exengine.kernel.device import Device, GetAttrEvent, SetAttrEvent
+
 """
 Tests wrapping a genric object for use with the ExecutionEngine
 """
@@ -70,7 +72,6 @@ def test_wrapping(obj):
     assert wrapper.value1 == 7
     engine.shutdown()
 
-
 class DeviceBase:
     def __init__(self, wrapped_device):
         self._device = wrapped_device
@@ -120,14 +121,17 @@ def register(engine: ExecutionEngine, id: str, obj: object):
             class_dict[name] = method
         else:
             def getter(self, _name=name):
-                return getattr(self._device, _name)
+                event = GetAttrEvent(attr_name=_name, instance=self, method=getattr)
+                return ExecutionEngine.get_instance().submit(event).await_execution()
             def setter(self, value, _name=name):
-                setattr(self._device, _name, value)
-            class_dict[name] = property(getter, setter, None, f"Wrapped attribute {name}")
+                event = SetAttrEvent(attr_name=_name, value=value, instance=self, method=setattr)
+                ExecutionEngine.get_instance().submit(event).await_execution()
+
+            has_setter = not isinstance(attribute, property) or property.fset is not None
+            class_dict[name] = property(getter, setter if has_setter else None, None, f"Wrapped attribute {name}")
 
         # event = MethodCallEvent(method_name=attr_name, args=args, kwargs=kwargs, instance=self)
-        # return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
-        # event = GetAttrEvent(attr_name=name, instance=self, method=getattribute_with_fallback)
+        # return
         # return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
         # event = SetAttrEvent(attr_name=name, value=value, instance=self, method=original_setattr)
         # ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
