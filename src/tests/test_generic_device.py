@@ -61,8 +61,13 @@ def test_bare(obj):
 
 def test_wrapping(obj):
     engine = ExecutionEngine()
-    wrapper = register(engine, obj)
+    wrapper = register(engine, "object1", obj)
     test_bare(wrapper)
+    # todo: why doesn't this work?
+    # engine["object1"].value1 = 28
+    # todo: why use the singleton antipattern?
+    ExecutionEngine.get_device("object1").value1 = 7
+    assert wrapper.value1 == 7
     engine.shutdown()
 
 
@@ -70,7 +75,7 @@ class DeviceBase:
     def __init__(self, wrapped_device):
         self._device = wrapped_device
 
-def register(engine: ExecutionEngine, obj: object):
+def register(engine: ExecutionEngine, id: str, obj: object):
     """
     Wraps an object for use with the ExecutionEngine
 
@@ -82,6 +87,12 @@ def register(engine: ExecutionEngine, obj: object):
 
     After wrapping, the original object should not be used directly anymore.
     All access should be done through the wrapper, which takes care of thread safety, synchronization, etc.
+
+    Args:
+        engine: ExecutionEngine instance
+        id: Unique id (name) of the device, used by the ExecutionEngine.
+        obj: object to wrap. The object should only be registered once. Use of the original object should be avoided after wrapping,
+            since access to the original object is not thread safe or otherwise managed by the ExecutionEngine.
     """
     #
     if any(d is obj for d in engine._devices):
@@ -111,26 +122,21 @@ def register(engine: ExecutionEngine, obj: object):
                 print(f"Calling {_method}")
                 return _method(self._device, *args, **kwargs)
             class_dict[name] = method
-        #elif isinstance(p, property):
-        #    class_dict[name] = property(p.fget, p.fset, None, p.__doc__)
         else:
             def getter(self, _name=name):
-                print(f"Getting {_name}")
                 return getattr(self._device, _name)
             def setter(self, value, _name=name):
-                print(f"Setting {_name} to {value}")
                 setattr(self._device, _name, value)
             class_dict[name] = property(getter, setter, None, f"Wrapped attribute {name}")
+
         # event = MethodCallEvent(method_name=attr_name, args=args, kwargs=kwargs, instance=self)
         # return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
-        # todo: use Device as common base class or not at all?
         # event = GetAttrEvent(attr_name=name, instance=self, method=getattribute_with_fallback)
         # return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
         # event = SetAttrEvent(attr_name=name, value=value, instance=self, method=original_setattr)
         # ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
     WrappedObject = type('_' + obj.__class__.__name__, (DeviceBase,), class_dict)
-    # todo: cache metaclasses
+    # todo: cache dynamically generated classes
     wrapped = WrappedObject(obj)
-    print(dir(wrapped))
-    ExecutionEngine.register_device(obj.__class__.__name__, wrapped)
+    ExecutionEngine.register_device(id, wrapped)
     return wrapped
