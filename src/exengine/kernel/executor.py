@@ -2,8 +2,6 @@
 Class that executes acquistion events across a pool of threads
 """
 import threading
-from collections import deque
-from typing import Deque
 import warnings
 import traceback
 from typing import Union, Iterable, Callable, Type
@@ -13,6 +11,42 @@ import inspect
 from .notification_base import Notification, NotificationCategory
 from .ex_event_base import ExecutorEvent, AnonymousCallableEvent
 from .ex_future import ExecutionFuture
+if hasattr(queue, 'Shutdown'):
+    PriorityQueue = queue.PriorityQueue
+    Shutdown = queue.Shutdown
+else:
+    # Pre-Python 3.13 compatibility
+    Shutdown = type('Shutdown', (BaseException,), {})
+    class PriorityQueue(queue.PriorityQueue):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._shutdown = threading.Event()
+            self._immediately = False
+
+        def shutdown(self, immediately=False):
+            """Shuts down the queue 'immediately' or after the current items are processed
+            Does not wait for the shutdown to complete (see join).
+            Note: this inserts 'None' sentinel values in the queue to signal termination.
+            """
+            self._immediately = immediately
+            self._shutdown.set()
+            super().put(None) # activate the worker thread if it is waiting at 'get'
+
+        def get(self, block=True, timeout=None):
+            if self._shutdown.is_set() and self._immediately:
+                raise Shutdown
+            retval = super().get(block, timeout)
+            if self._shutdown.is_set() and (self._immediately or retval is None):
+                super().put(None) # activate the next worker thread
+                raise Shutdown
+            else:
+                return retval
+
+        def put(self, item, block=True, timeout=None):
+            if self._shutdown.is_set():
+                raise Shutdown # thread is being shut down, cannot add more items
+            return super().put(item, block, timeout)
+
 
 _MAIN_THREAD_NAME = 'MainExecutorThread'
 _ANONYMOUS_THREAD_NAME = 'AnonymousExecutorThread'
@@ -24,7 +58,6 @@ class MultipleExceptions(Exception):
         super().__init__("Multiple exceptions occurred:\n" + "\n".join(messages))
 
 class ExecutionEngine:
-
     _instance = None
     _lock = threading.Lock()
     _debug = False
@@ -43,7 +76,6 @@ class ExecutionEngine:
         self._notification_subscriber_filters: list[Union[NotificationCategory, Type]] = []
         self._notification_lock = threading.Lock()
         self._notification_thread = None
-        self._shutdown_event = threading.Event()
 
         with self._lock:
             if not hasattr(self, '_initialized'):
@@ -281,7 +313,6 @@ class ExecutionEngine:
         # For now just let the devices be garbage collected.
         # TODO: add explicit shutdowns for devices here?
         self._devices = None
-        self._shutdown_event.set()
         for thread in self._thread_managers.values():
             thread.shutdown()
         for thread in self._thread_managers.values():
@@ -295,6 +326,8 @@ class ExecutionEngine:
         ExecutionEngine._instance = None
 
 
+
+
 class _ExecutionThreadManager:
     """
     Class which manages a single thread that executes events from a queue, one at a time. Events can be added
@@ -305,113 +338,102 @@ class _ExecutionThreadManager:
     or events in its queue with the is_free method.
 
     """
-    _deque: Deque[ExecutorEvent]
-    thread: threading.Thread
-
     def __init__(self, name='UnnamedExectorThread'):
         super().__init__()
         self.thread = threading.Thread(target=self._run_thread, name=name)
         self.thread.execution_engine_thread = True
-        self._deque = deque()
-        self._shutdown_event = threading.Event()
-        self._terminate_event = threading.Event()
+        # todo: use single queue for all threads in a pool
+        # todo: custom queue class or re-queuing mechanism that allows checking requirements for starting the operation?
+        self._queue = PriorityQueue()
         self._exception = None
-        self._event_executing = False
-        self._addition_condition = threading.Condition()
+        self._event_executing = threading.Event()
         self.thread.start()
 
     def join(self):
         self.thread.join()
 
     def _run_thread(self):
-        event = None
-        while True:
-            if self._terminate_event.is_set():
-                return
-            if self._shutdown_event.is_set() and not self._deque:
-                return
-            # Event retrieval loop
-            while event is None:
-                with (self._addition_condition):
-                    if not self._deque:
-                        # wait until something is in the queue
-                        self._addition_condition.wait()
-                    if self._terminate_event.is_set():
-                        return
-                    if self._shutdown_event.is_set() and not self._deque:
-                        # awoken by a shutdown event and the queue is empty
-                        return
-                    event: ExecutorEvent = self._deque.popleft()
-                    if not hasattr(event, '_num_retries_on_exception'):
-                        warnings.warn("Event does not have num_retries_on_exception attribute, setting to 0")
-                        event._num_retries_on_exception = 0
-                    num_retries = event._num_retries_on_exception
-                    self._event_executing = True
+        """Main loop for worker threads.
 
-            # Event execution loop
-            exception = None
-            return_val = None
-            for attempt_number in range(event._num_retries_on_exception + 1):
-                if self._terminate_event.is_set():
-                    return  # Executor has been terminated
+        A thread is stopped by sending a TerminateThreadEvent to it and optionally setting the _terminate_now flag.
+        When a TerminateThreadEvent is encountered in the queue, the thread will terminate and discard all subsequent events.
+        todo: possible race condition when high-priority event is added after termination event
+        If the _terminate_now flag is set, the thread will terminate as soon as possible.
+        """
+        return_val = None
+        try:
+            while True:
+                event = self._queue.get(block=True) # raises Shutdown exception when thread is shutting down
+                self._exception = None
                 try:
+                    if event._finished:
+                        # this is unrecoverable, never retry
+                        # todo: move this check to the submit code, this will give earlier and more accurate feedback
+                        event._retries_on_execution = 0
+                        raise RuntimeError("Event ", event, " was already executed")
+
+                    self._event_executing.set()
                     if ExecutionEngine._debug:
                         print("Executing event", event.__class__.__name__, threading.current_thread())
-                    if event._finished:
-                        raise RuntimeError("Event ", event, " was already executed")
                     return_val = event.execute()
                     if ExecutionEngine._debug:
                         print("Finished executing", event.__class__.__name__, threading.current_thread())
-                    break
+                    self._event_executing.clear()
+
                 except Exception as e:
-                    warnings.warn(f"{e} during execution of {event}" + (", retrying {num_retries} more times"
-                                  if num_retries > 0 else ""))
-                    # traceback.print_exc()
-                    exception = e
-            if exception is not None:
-                ExecutionEngine.get_instance()._log_exception(exception)
-            event._post_execution(return_value=return_val, exception=exception)
-            with self._addition_condition:
-                self._event_executing = False
-            event = None
+                    if event._num_retries_on_exception > 0:
+                        event._num_retries_on_exception -= 1
+                        event.priority = 0 # reschedule with high priority
+                        # log warning and try again
+                        warnings.warn(f"{e} during execution of {event}" +
+                                  f", retrying {event._num_retries_on_exception} more times")
+                        continue # don't call post_execution just yet
+                    else:
+                        # give up
+                        ExecutionEngine.get_instance()._log_exception(e)
+                        self._exception = e
+
+                finally:
+                    self._queue.task_done()
+
+                try:
+                    event._post_execution(return_value=return_val, exception=self._exception)
+                except Exception as e:
+                    ExecutionEngine.get_instance()._log_exception(e)
+
+        except Shutdown:
+            pass
+
 
     def is_free(self):
         """
         return true if an event is not currently being executed and the queue is empty
         """
-        with self._addition_condition:
-            return not self._event_executing and not self._deque and not \
-                    self._terminate_event.is_set() and not self._shutdown_event.is_set()
+        return not self._event_executing.is_set() and self._queue.empty()
 
     def submit_event(self, event, prioritize=False):
         """
         Submit an event for execution on this thread. If prioritize is True, the event will be executed before any other
         events in the queue.
+
+        Raises:
+            Shutdown: If the thread is shutting down
         """
-        with self._addition_condition:
-            if self._shutdown_event.is_set() or self._terminate_event.is_set():
-                raise RuntimeError("Cannot submit event to a thread that has been shutdown")
-            if prioritize:
-                self._deque.appendleft(event)
-            else:
-                self._deque.append(event)
-            self._addition_condition.notify_all()
+        if prioritize:
+            event.priority = 0 # place at front of queue
+        self._queue.put(event)
 
     def terminate(self):
         """
         Stop the thread immediately, without waiting for the current event to finish
         """
-        with self._addition_condition:
-            self._terminate_event.set()
-            self._shutdown_event.set()
-            self._addition_condition.notify_all()
+        self._queue.shutdown(immediately=True)
         self.thread.join()
+
     def shutdown(self):
         """
         Stop the thread and wait for it to finish
         """
-        with self._addition_condition:
-            self._shutdown_event.set()
-            self._addition_condition.notify_all()
+        self._queue.shutdown(immediately=False)
         self.thread.join()
 
