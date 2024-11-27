@@ -4,7 +4,8 @@ import threading
 import pytest
 
 from exengine import ExecutionEngine
-from exengine.kernel.device import Device, GetAttrEvent, SetAttrEvent
+from exengine.kernel.device import Device, GetAttrEvent, SetAttrEvent, MethodCallEvent
+from exengine.kernel.ex_future import ExecutionFuture
 
 """
 Tests wrapping a genric object for use with the ExecutionEngine
@@ -50,21 +51,28 @@ class TestObject:
 def obj():
     return TestObject()
 
-def test_bare(obj):
+def verify_behavior(obj):
     """Test the non-wrapped object"""
+    with pytest.raises(AttributeError):
+        obj.readonly_property = 0 # noqa property cannot be set
     obj.value1 = 28
     obj.value2 = 29
     assert obj.value1 == 28
     assert obj.value2 == 29
-    with pytest.raises(AttributeError):
-        obj.readonly_property = 0 # noqa property cannot be set
     assert obj.readonly_property == -1
-    assert obj.public_method(4) == 28 + 29 + 4
+    result = obj.public_method(4)
+    if isinstance(result, ExecutionFuture):
+        result = result.await_execution()
+    assert result == 28 + 29 + 4
+
+
+def test_bare(obj):
+    verify_behavior(obj)
 
 def test_wrapping(obj):
     engine = ExecutionEngine()
     wrapper = register(engine, "object1", obj)
-    test_bare(wrapper)
+    verify_behavior(wrapper)
     # todo: why doesn't this work?
     # engine["object1"].value1 = 28
     # todo: why use the singleton antipattern?
@@ -115,19 +123,19 @@ def register(engine: ExecutionEngine, id: str, obj: object):
             continue  # skip private attributes
 
         if inspect.isfunction(attribute):
-            def method(self, *args, _method=attribute, **kwargs):
-                print(f"Calling {_method}")
-                return _method(self._device, *args, **kwargs)
+            def method(self, *args, _name=name, **kwargs):
+                event = MethodCallEvent(method_name=_name, args=args, kwargs=kwargs, instance=self._device)
+                return ExecutionEngine.get_instance().submit(event)
             class_dict[name] = method
         else:
             def getter(self, _name=name):
-                event = GetAttrEvent(attr_name=_name, instance=self, method=getattr)
+                event = GetAttrEvent(attr_name=_name, instance=self._device, method=getattr)
                 return ExecutionEngine.get_instance().submit(event).await_execution()
             def setter(self, value, _name=name):
-                event = SetAttrEvent(attr_name=_name, value=value, instance=self, method=setattr)
+                event = SetAttrEvent(attr_name=_name, value=value, instance=self._device, method=setattr)
                 ExecutionEngine.get_instance().submit(event).await_execution()
 
-            has_setter = not isinstance(attribute, property) or property.fset is not None
+            has_setter = not isinstance(attribute, property) or attribute.fset is not None
             class_dict[name] = property(getter, setter if has_setter else None, None, f"Wrapped attribute {name}")
 
         # event = MethodCallEvent(method_name=attr_name, args=args, kwargs=kwargs, instance=self)
