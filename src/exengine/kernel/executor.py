@@ -13,6 +13,14 @@ from .ex_event_base import ExecutorEvent, AnonymousCallableEvent
 from .ex_future import ExecutionFuture
 from .queue import PriorityQueue, Queue, Shutdown
 
+# todo: Remove singleton pattern. Remove related locking, __new__ override and other complications
+# todo: Add shutdown to __del__
+# todo: use [] operator for getting devices by id
+# todo: simplify worker threads:
+#   - remove enqueing on free thread -> replace by a thread pool mechanism
+#   - decouple enqueing and dequeing (related)
+#   - remove is_free and related overhead
+# todo: simplify ExecutorEvent class and lifecycle
 
 _MAIN_THREAD_NAME = 'MainExecutorThread'
 _ANONYMOUS_THREAD_NAME = 'AnonymousExecutorThread'
