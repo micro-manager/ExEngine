@@ -58,6 +58,12 @@ class ExecutorEvent(ABC, metaclass=_ExecutorEventMeta):
             return True # always put 'None' at the end of the queue
         return self._priority < other._priority
 
+    def __gt__(self, other) -> bool:
+        """Implement the > operator to allow sorting events by priority"""
+        if other is None:
+            return False
+        return self._priority > other._priority
+
     def _pre_execution(self, engine) -> ExecutionFuture:
         """
         This is called automatically by the Executor and should not be overriden by subclasses.

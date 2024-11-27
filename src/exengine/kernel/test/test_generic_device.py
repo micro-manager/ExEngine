@@ -1,10 +1,14 @@
 import inspect
-import threading
+
+import numpy as np
+import openwfs
+from openwfs.simulation import Camera, StaticSource
+from openwfs.processors import SingleRoi
 
 import pytest
 
 from exengine import ExecutionEngine
-from exengine.kernel.device import Device, GetAttrEvent, SetAttrEvent, MethodCallEvent
+from exengine.kernel.device import GetAttrEvent, SetAttrEvent, MethodCallEvent
 from exengine.kernel.ex_future import ExecutionFuture
 
 """
@@ -83,6 +87,19 @@ def test_wrapping(obj):
 class DeviceBase:
     def __init__(self, wrapped_device):
         self._device = wrapped_device
+
+
+def test_openwfs():
+    img = np.zeros((1000, 1000), dtype=np.int16)
+    cam = Camera(StaticSource(img), analog_max=None)
+    engine = ExecutionEngine()
+    wrapper = register(engine, "camera1", cam)
+    future = wrapper.read()
+    engine.shutdown()
+    frame = future.await_execution()
+    assert frame.shape == img.shape
+    assert np.all(frame == img)
+
 
 def register(engine: ExecutionEngine, id: str, obj: object):
     """
