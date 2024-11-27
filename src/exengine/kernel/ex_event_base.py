@@ -52,8 +52,10 @@ class ExecutorEvent(ABC, metaclass=_ExecutorEventMeta):
         # Check for method-level preferred thread name first, then class-level
         self._thread_name = getattr(self.execute, '_thread_name', None) or getattr(self.__class__, '_thread_name', None)
 
-    def __lt__(self, other: "ExecutorEvent") -> bool:
+    def __lt__(self, other) -> bool:
         """Implement the < operator to allow sorting events by priority"""
+        if other is None:
+            return True # always put 'None' at the end of the queue
         return self._priority < other._priority
 
     def _pre_execution(self, engine) -> ExecutionFuture:

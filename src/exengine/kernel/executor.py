@@ -11,41 +11,7 @@ import inspect
 from .notification_base import Notification, NotificationCategory
 from .ex_event_base import ExecutorEvent, AnonymousCallableEvent
 from .ex_future import ExecutionFuture
-if hasattr(queue, 'Shutdown'):
-    PriorityQueue = queue.PriorityQueue
-    Shutdown = queue.Shutdown
-else:
-    # Pre-Python 3.13 compatibility
-    Shutdown = type('Shutdown', (BaseException,), {})
-    class PriorityQueue(queue.PriorityQueue):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._shutdown = threading.Event()
-            self._immediately = False
-
-        def shutdown(self, immediately=False):
-            """Shuts down the queue 'immediately' or after the current items are processed
-            Does not wait for the shutdown to complete (see join).
-            Note: this inserts 'None' sentinel values in the queue to signal termination.
-            """
-            self._immediately = immediately
-            self._shutdown.set()
-            super().put(None) # activate the worker thread if it is waiting at 'get'
-
-        def get(self, block=True, timeout=None):
-            if self._shutdown.is_set() and self._immediately:
-                raise Shutdown
-            retval = super().get(block, timeout)
-            if self._shutdown.is_set() and (self._immediately or retval is None):
-                super().put(None) # activate the next worker thread
-                raise Shutdown
-            else:
-                return retval
-
-        def put(self, item, block=True, timeout=None):
-            if self._shutdown.is_set():
-                raise Shutdown # thread is being shut down, cannot add more items
-            return super().put(item, block, timeout)
+from .queue import PriorityQueue, Queue, Shutdown
 
 
 _MAIN_THREAD_NAME = 'MainExecutorThread'
@@ -69,9 +35,9 @@ class ExecutionEngine:
         return cls._instance
 
     def __init__(self):
-        self._exceptions = queue.Queue()
+        self._exceptions = Queue()
         self._devices = {}
-        self._notification_queue = queue.Queue()
+        self._notification_queue = Queue()
         self._notification_subscribers: list[Callable[[Notification], None]] = []
         self._notification_subscriber_filters: list[Union[NotificationCategory, Type]] = []
         self._notification_lock = threading.Lock()
@@ -124,18 +90,23 @@ class ExecutionEngine:
             self._notification_subscriber_filters.pop(index)
 
     def _notification_thread_run(self):
-        while not self._shutdown_event.is_set() or self._notification_queue.qsize() > 0:
-            try:
-                notification = self._notification_queue.get(timeout=1)
-            except queue.Empty:
-                continue
-            with self._notification_lock:
-                for subscriber, filter in zip(self._notification_subscribers, self._notification_subscriber_filters):
-                    if filter is not None and isinstance(filter, type) and not isinstance(notification, filter):
-                        continue  # not interested in this type
-                    if filter is not None and isinstance(filter, NotificationCategory) and notification.category != filter:
-                        continue
-                    subscriber(notification)
+        try:
+            while True:
+                notification = self._notification_queue.get()
+                try:
+                    with self._notification_lock:
+                        for subscriber, filter in zip(self._notification_subscribers, self._notification_subscriber_filters):
+                            if filter is not None and isinstance(filter, type) and not isinstance(notification, filter):
+                                continue  # not interested in this type
+                            if filter is not None and isinstance(filter, NotificationCategory) and notification.category != filter:
+                                continue
+                            subscriber(notification)
+                except Exception as e:
+                    ExecutionEngine._log_exception(e)
+                finally:
+                    self._notification_queue.task_done()
+        except Shutdown:
+            pass
 
     def publish_notification(self, notification: Notification):
         """
@@ -318,9 +289,9 @@ class ExecutionEngine:
         for thread in self._thread_managers.values():
             thread.join()
 
-        # Make sure the notification thread is stopped
+        # Make sure the notification thread is stopped if it was started at all
         if self._notification_thread is not None:
-            # It was never started if no one subscribed
+            self._notification_queue.shutdown()
             self._notification_thread.join()
         # delete singleton instance
         ExecutionEngine._instance = None
