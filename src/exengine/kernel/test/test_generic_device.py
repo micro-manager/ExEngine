@@ -138,11 +138,6 @@ def register(engine: ExecutionEngine, id: str, obj: object):
             has_setter = not isinstance(attribute, property) or attribute.fset is not None
             class_dict[name] = property(getter, setter if has_setter else None, None, f"Wrapped attribute {name}")
 
-        # event = MethodCallEvent(method_name=attr_name, args=args, kwargs=kwargs, instance=self)
-        # return
-        # return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
-        # event = SetAttrEvent(attr_name=name, value=value, instance=self, method=original_setattr)
-        # ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
     WrappedObject = type('_' + obj.__class__.__name__, (DeviceBase,), class_dict)
     # todo: cache dynamically generated classes
     wrapped = WrappedObject(obj)
