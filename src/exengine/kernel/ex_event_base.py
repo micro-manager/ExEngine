@@ -134,15 +134,14 @@ class AnonymousCallableEvent(ExecutorEvent):
     The callable object should take no arguments and optionally return a value.
     """
     def __init__(self, callable_obj: Callable[[], Any]):
-        super().__init__()
-        self.callable_obj = callable_obj
         # Check if the callable has no parameters (except for 'self' in case of methods)
         if not callable(callable_obj):
             raise TypeError("Callable object must be a function or method")
-        signature = inspect.signature(callable_obj)
-        if not all(param.default != param.empty or param.kind == param.VAR_POSITIONAL for param in
-               signature.parameters.values()):
+        if not inspect.signature(callable_obj).bind():
             raise TypeError("Callable object must take no arguments")
+
+        super().__init__()
+        self.callable_obj = callable_obj
 
 
     def execute(self):

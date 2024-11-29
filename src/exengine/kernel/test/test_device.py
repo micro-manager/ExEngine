@@ -1,5 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
+
+from exengine import ExecutionEngine
 from exengine.kernel.device import Device
 
 
@@ -58,7 +60,9 @@ def test_stop_triggerable_sequence(mock_device):
 class TestDeviceDefaults:
     @pytest.fixture
     def default_device(self):
-        return Device('default_device', no_executor=True)
+        engine = ExecutionEngine()
+        yield Device(engine=engine, name='default_device')
+        engine.shutdown()
 
     def test_get_allowed_property_values_default(self, default_device):
         assert default_device.get_allowed_property_values('test_property') is None

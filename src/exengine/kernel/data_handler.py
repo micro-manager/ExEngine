@@ -5,6 +5,7 @@ import numpy.typing as npt
 from pydantic.types import JsonValue
 from dataclasses import dataclass
 
+from .executor import ExecutionEngine
 from .notification_base import DataStoredNotification
 from .data_coords import DataCoordinates
 from .data_storage_base import DataStorage
@@ -49,17 +50,11 @@ class DataHandler:
     # This class must create at least one additional thread (the saving thread)
     # and may create another for processing data
 
-    def __init__(self, storage: DataStorage,
+    def __init__(self, engine: ExecutionEngine, storage: DataStorage,
                  process_function: Callable[[DataCoordinates, npt.NDArray["Any"], JsonValue],
                                 Optional[Union[DataCoordinates, npt.NDArray["Any"], JsonValue,
-                                               Tuple[DataCoordinates, npt.NDArray["Any"], JsonValue]]]] = None,
-                 _executor=None):
-        # delayed import to avoid circular imports
-        if _executor is None:
-            from .executor import ExecutionEngine
-            self._engine = ExecutionEngine.get_instance()
-        else:
-            self._engine = _executor
+                                               Tuple[DataCoordinates, npt.NDArray["Any"], JsonValue]]]] = None):
+        self._engine = engine
         self._storage = storage
         self._process_function = process_function
         self._intake_queue = _PeekableQueue()

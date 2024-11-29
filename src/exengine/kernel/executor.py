@@ -4,6 +4,7 @@ Class that executes acquistion events across a pool of threads
 import threading
 import warnings
 import traceback
+import weakref
 from typing import Union, Iterable, Callable, Type
 import queue
 import inspect
@@ -32,15 +33,7 @@ class MultipleExceptions(Exception):
         super().__init__("Multiple exceptions occurred:\n" + "\n".join(messages))
 
 class ExecutionEngine:
-    _instance = None
-    _lock = threading.Lock()
     _debug = False
-
-    def __new__(cls, *args, **kwargs):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-        return cls._instance
 
     def __init__(self):
         self._exceptions = Queue()
@@ -50,12 +43,8 @@ class ExecutionEngine:
         self._notification_subscriber_filters: list[Union[NotificationCategory, Type]] = []
         self._notification_lock = threading.Lock()
         self._notification_thread = None
-
-        with self._lock:
-            if not hasattr(self, '_initialized'):
-                self._thread_managers = {}
-                self._start_new_thread(_MAIN_THREAD_NAME)
-                self._initialized = True
+        self._thread_managers = {}
+        self._start_new_thread(_MAIN_THREAD_NAME)
 
     def subscribe_to_notifications(self, subscriber: Callable[[Notification], None],
                                    notification_type: Union[NotificationCategory, Type] = None
@@ -110,7 +99,7 @@ class ExecutionEngine:
                                 continue
                             subscriber(notification)
                 except Exception as e:
-                    ExecutionEngine._log_exception(e)
+                    self._log_exception(e)
                 finally:
                     self._notification_queue.task_done()
         except Shutdown:
@@ -122,57 +111,47 @@ class ExecutionEngine:
         """
         self._notification_queue.put(notification)
 
-    @classmethod
-    def get_instance(cls) -> 'ExecutionEngine':
-        return cls._instance
-
-    @classmethod
-    def get_device(cls, device_name):
+    def __getitem__(self, device_id: str):
         """
         Get a device by name
-        """
-        if device_name not in cls.get_instance()._devices:
-            raise ValueError(f"No device with name {device_name}")
-        return cls.get_instance()._devices[device_name]
 
-    @classmethod
-    def register_device(cls, name, device):
+        Args:
+            device_id: unique id of the device that was used in the call to register_device.
+        Returns:
+            device
+        Raises:
+            KeyError if a device with this id is not found.
+        """
+        return self._devices[device_id]
+
+    def register_device(self, name: str, device):
         """
         Called automatically when a Device is created so that the ExecutionEngine can keep track of all devices
         and look them up by their string names
         """
         # Make sure there's not already a device with this name
-        executor = cls.get_instance()
-        if name is not None:
-            # only true after initialization, but this gets called after all the subclass constructors
-            if name in executor._devices and executor._devices[name] is not device:
-                raise ValueError(f"Device with name {name} already exists")
-            executor._devices[name] = device
+        if name in self._devices:
+            raise ValueError(f"Device with name {name} already exists")
+        # todo: check if device is wrapped
+        self._devices[name] = device
 
-    @classmethod
-    def on_main_executor_thread(cls):
-        """
-        Check if the current thread is an executor thread
-        """
-        return threading.current_thread().name is _MAIN_THREAD_NAME
 
-    @classmethod
-    def on_any_executor_thread(cls):
-        if ExecutionEngine.get_instance() is None:
-            raise RuntimeError("on_any_executor_thread: ExecutionEngine has not been initialized")
+    @staticmethod
+    def on_any_executor_thread():
+        #todo: remove
         result = (hasattr(threading.current_thread(), 'execution_engine_thread')
                   and threading.current_thread().execution_engine_thread)
         return result
 
     def _start_new_thread(self, name):
-        self._thread_managers[name] = _ExecutionThreadManager(name)
+        self._thread_managers[name] = _ExecutionThreadManager(self, name)
 
-    def set_debug_mode(self, debug):
+    @staticmethod
+    def set_debug_mode(debug):
         ExecutionEngine._debug = debug
 
-    @classmethod
-    def _log_exception(cls, exception):
-        ExecutionEngine.get_instance()._exceptions.put(exception)
+    def _log_exception(self, exception):
+        self._exceptions.put(exception)
 
     def check_exceptions(self):
         """
@@ -187,7 +166,7 @@ class ExecutionEngine:
             else:
                 raise MultipleExceptions(exceptions)
 
-    def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent]], thread_name=None,
+    def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent], Callable], thread_name=None,
                prioritize: bool = False, use_free_thread: bool = False) -> Union[ExecutionFuture, Iterable[ExecutionFuture]]:
         """
         Submit one or more acquisition events or callable objects for execution.
@@ -301,8 +280,6 @@ class ExecutionEngine:
         if self._notification_thread is not None:
             self._notification_queue.shutdown()
             self._notification_thread.join()
-        # delete singleton instance
-        ExecutionEngine._instance = None
 
 
 
@@ -317,14 +294,14 @@ class _ExecutionThreadManager:
     or events in its queue with the is_free method.
 
     """
-    def __init__(self, name='UnnamedExectorThread'):
-        super().__init__()
+    def __init__(self, engine: ExecutionEngine, name='UnnamedExectorThread'):
         self.thread = threading.Thread(target=self._run_thread, name=name)
         self.thread.execution_engine_thread = True
         # todo: use single queue for all threads in a pool
         # todo: custom queue class or re-queuing mechanism that allows checking requirements for starting the operation?
         self._queue = PriorityQueue()
         self._exception = None
+        self._engine = engine
         self._event_executing = threading.Event()
         self.thread.start()
 
@@ -369,7 +346,7 @@ class _ExecutionThreadManager:
                         continue # don't call post_execution just yet
                     else:
                         # give up
-                        ExecutionEngine.get_instance()._log_exception(e)
+                        self._engine._log_exception(e)
                         self._exception = e
 
                 finally:
@@ -378,7 +355,7 @@ class _ExecutionThreadManager:
                 try:
                     event._post_execution(return_value=return_val, exception=self._exception)
                 except Exception as e:
-                    ExecutionEngine.get_instance()._log_exception(e)
+                    self._engine._log_exception(e)
 
         except Shutdown:
             pass

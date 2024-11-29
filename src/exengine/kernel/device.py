@@ -25,37 +25,36 @@ def _initialize_thread_patching():
     # Keep this list accessible outside of class attributes to avoid infinite recursion
     # Note: This is already defined at module level, so we don't redefine it here
 
-    def thread_start_hook(thread):
-        # keep track of threads that were created by code running on an executor thread so calls on them
-        # dont get rerouted to the executor
-        if ExecutionEngine.get_instance() and (
-                ExecutionEngine.on_any_executor_thread() or threading.current_thread() in _within_executor_threads):
-            _within_executor_threads.add(thread)
+    # def thread_start_hook(thread):
+    #     # keep track of threads that were created by code running on an executor thread so calls on them
+    #     # dont get rerouted to the executor
+    #     if ExecutionEngine.get_instance() and (
+    #             ExecutionEngine.on_any_executor_thread() or threading.current_thread() in _within_executor_threads):
+    #         _within_executor_threads.add(thread)
+    #
+    # # Monkey patch the threading module so we can monitor the creation of new threads
+    # _original_thread_start = threading.Thread.start
+    #
+    # # Define a new start method that adds the hook
+    # def _thread_start(self, *args, **kwargs):
+    #     try:
+    #         thread_start_hook(self)
+    #         _original_thread_start(self, *args, **kwargs)
+    #     except Exception as e:
+    #         print(f"Error in thread start hook: {e}")
+    #         # traceback.print_exc()
+    #
+    # # Replace the original start method with the new one
+    # threading.Thread.start = _thread_start
+    # threading.Thread._monkey_patched_start = True
 
-    # Monkey patch the threading module so we can monitor the creation of new threads
-    _original_thread_start = threading.Thread.start
-
-    # Define a new start method that adds the hook
-    def _thread_start(self, *args, **kwargs):
-        try:
-            thread_start_hook(self)
-            _original_thread_start(self, *args, **kwargs)
-        except Exception as e:
-            print(f"Error in thread start hook: {e}")
-            # traceback.print_exc()
-
-    # Replace the original start method with the new one
-    threading.Thread.start = _thread_start
-    threading.Thread._monkey_patched_start = True
-
-    return _python_debugger_active, _within_executor_threads, _original_thread_start
+    return _python_debugger_active, _within_executor_threads
 
 
 # Call this function to initialize the thread patching
 if not hasattr(threading.Thread, '_monkey_patched_start'):
-    _python_debugger_active, _within_executor_threads, _original_thread_start = _initialize_thread_patching()
+    _python_debugger_active, _within_executor_threads = _initialize_thread_patching()
     _no_executor_attrs = ['_name', '_no_executor', '_no_executor_attrs', '_thread_name']
-
 
 @dataclass
 class MethodCallEvent(ExecutorEvent):
@@ -130,7 +129,7 @@ class DeviceMetaclass(ABCMeta):
                 if thread_name is None or threading.current_thread().name == thread_name:
                     return attr_value(self, *args, **kwargs)
             event = MethodCallEvent(method_name=attr_name, args=args, kwargs=kwargs, instance=self)
-            return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
+            return self._engine.submit(event, thread_name=thread_name).await_execution()
 
         wrapper._wrapped_for_executor = True
         return wrapper
@@ -148,7 +147,7 @@ class DeviceMetaclass(ABCMeta):
 
     @staticmethod
     def _is_reroute_exempted_thread() -> bool:
-        return (DeviceMetaclass.is_debugger_thread() or threading.current_thread() in _within_executor_threads)
+        return DeviceMetaclass.is_debugger_thread() or threading.current_thread() in _within_executor_threads
 
     @staticmethod
     def find_in_bases(bases, method_name):
@@ -186,7 +185,7 @@ class DeviceMetaclass(ABCMeta):
                         raise e
 
         def __getattribute__(self: 'Device', name: str) -> Any:
-            if name in _no_executor_attrs or self._no_executor:
+            if name.startswith('_') or name in _no_executor_attrs or self._no_executor:
                 return object.__getattribute__(self, name)
             if DeviceMetaclass._is_reroute_exempted_thread():
                 return getattribute_with_fallback(self, name)
@@ -196,7 +195,7 @@ class DeviceMetaclass(ABCMeta):
                 if thread_name is None or threading.current_thread().name == thread_name:
                     return getattribute_with_fallback(self, name)
             event = GetAttrEvent(attr_name=name, instance=self, method=getattribute_with_fallback)
-            return ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
+            return self._engine.submit(event, thread_name=thread_name).await_execution()
 
         def __setattr__(self: 'Device', name: str, value: Any) -> None:
             if name in _no_executor_attrs or self._no_executor:
@@ -209,7 +208,7 @@ class DeviceMetaclass(ABCMeta):
                 if thread_name is None or threading.current_thread().name == thread_name:
                     return original_setattr(self, name, value)
             event = SetAttrEvent(attr_name=name, value=value, instance=self, method=original_setattr)
-            ExecutionEngine.get_instance().submit(event, thread_name=thread_name).await_execution()
+            self._engine.submit(event, thread_name=thread_name).await_execution()
 
         new_attrs['__getattribute__'] = __getattribute__
         new_attrs['__setattr__'] = __setattr__
@@ -221,20 +220,6 @@ class DeviceMetaclass(ABCMeta):
 
         # Create the class
         cls = super().__new__(mcs, name, bases, new_attrs)
-
-        # Add automatic registration to the executor
-        original_init = cls.__init__
-
-        @wraps(original_init)
-        def init_and_register(self, *args, **kwargs):
-            original_init(self, *args, **kwargs)
-            # Register the instance with the executor
-            if hasattr(self, '_name') and hasattr(self, '_no_executor') and not self._no_executor:
-                ExecutionEngine.register_device(self._name, self)
-
-        # Use setattr instead of direct assignment
-        setattr(cls, '__init__', init_and_register)
-
 
         return cls
 
@@ -254,7 +239,7 @@ class Device(ABC, metaclass=DeviceMetaclass):
     methods) by defining a getter and setter method for the property.
     """
 
-    def __init__(self, name: str, no_executor: bool = False, no_executor_attrs: Sequence[str] = ('_name', )):
+    def __init__(self, engine: ExecutionEngine, name: str, no_executor: bool = False, no_executor_attrs: Sequence[str] = ('_name', )):
         """
         Create a new device
 
@@ -264,9 +249,11 @@ class Device(ABC, metaclass=DeviceMetaclass):
         :param no_executor_attrs: If no_executor is False, this is a list of attribute names that will be executed
         directly on the calling thread
         """
+        self._engine = engine
         self._no_executor_attrs.extend(no_executor_attrs)
         self._no_executor = no_executor
         self._name = name
+        engine.register_device(name, self)
 
 
     def get_allowed_property_values(self, property_name: str) -> Optional[list[str]]:

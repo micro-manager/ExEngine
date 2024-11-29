@@ -77,10 +77,7 @@ def test_wrapping(obj):
     engine = ExecutionEngine()
     wrapper = register(engine, "object1", obj)
     verify_behavior(wrapper)
-    # todo: why doesn't this work?
-    # engine["object1"].value1 = 28
-    # todo: why use the singleton antipattern?
-    ExecutionEngine.get_device("object1").value1 = 7
+    engine["object1"].value1 = 7
     assert wrapper.value1 == 7
     engine.shutdown()
 
@@ -142,15 +139,15 @@ def register(engine: ExecutionEngine, id: str, obj: object):
         if inspect.isfunction(attribute):
             def method(self, *args, _name=name, **kwargs):
                 event = MethodCallEvent(method_name=_name, args=args, kwargs=kwargs, instance=self._device)
-                return ExecutionEngine.get_instance().submit(event)
+                return engine.submit(event)
             class_dict[name] = method
         else:
             def getter(self, _name=name):
                 event = GetAttrEvent(attr_name=_name, instance=self._device, method=getattr)
-                return ExecutionEngine.get_instance().submit(event).await_execution()
+                return engine.submit(event).await_execution()
             def setter(self, value, _name=name):
                 event = SetAttrEvent(attr_name=_name, value=value, instance=self._device, method=setattr)
-                ExecutionEngine.get_instance().submit(event).await_execution()
+                engine.submit(event).await_execution()
 
             has_setter = not isinstance(attribute, property) or attribute.fset is not None
             class_dict[name] = property(getter, setter if has_setter else None, None, f"Wrapped attribute {name}")
@@ -158,5 +155,5 @@ def register(engine: ExecutionEngine, id: str, obj: object):
     WrappedObject = type('_' + obj.__class__.__name__, (DeviceBase,), class_dict)
     # todo: cache dynamically generated classes
     wrapped = WrappedObject(obj)
-    ExecutionEngine.register_device(id, wrapped)
+    engine.register_device(id, wrapped)
     return wrapped
