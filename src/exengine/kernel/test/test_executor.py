@@ -257,6 +257,7 @@ def test_submit_multiple_events(engine):
     assert event2.executed
 
 
+@pytest.mark.skip("This test is broken. Even though event3 gets priority, it may execute after event2.")
 def test_event_prioritization(engine):
     """
     Test event prioritization in the ExecutionEngine.
@@ -278,6 +279,7 @@ def test_event_prioritization(engine):
     start_event1.wait()  # Wait for the first event to start executing
 
     engine.submit(event2)
+    # race condition, at this point the engine may or may not have started executing event2
     engine.submit(event3, prioritize=True)
 
     finish_event1.set()

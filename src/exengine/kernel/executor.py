@@ -14,9 +14,7 @@ from .ex_event_base import ExecutorEvent, AnonymousCallableEvent
 from .ex_future import ExecutionFuture
 from .queue import PriorityQueue, Queue, Shutdown
 
-# todo: Remove singleton pattern. Remove related locking, __new__ override and other complications
 # todo: Add shutdown to __del__
-# todo: use [] operator for getting devices by id
 # todo: simplify worker threads:
 #   - remove enqueing on free thread -> replace by a thread pool mechanism
 #   - decouple enqueing and dequeing (related)
@@ -119,7 +117,7 @@ class ExecutionEngine:
         WrappedObject = type('_' + obj.__class__.__name__, (DeviceBase,), class_dict)
         # todo: cache dynamically generated classes
         wrapped = WrappedObject(self,obj)
-        self.register_device(id, wrapped)
+        self._devices[id] = wrapped
         return wrapped
 
     def subscribe_to_notifications(self, subscriber: Callable[[Notification], None],
@@ -199,18 +197,6 @@ class ExecutionEngine:
             KeyError if a device with this id is not found.
         """
         return self._devices[device_id]
-
-    def register_device(self, name: str, device):
-        """
-        Called automatically when a Device is created so that the ExecutionEngine can keep track of all devices
-        and look them up by their string names
-        """
-        # Make sure there's not already a device with this name
-        if name in self._devices:
-            raise ValueError(f"Device with name {name} already exists")
-        # todo: check if device is wrapped
-        self._devices[name] = device
-
 
     @staticmethod
     def on_any_executor_thread():
