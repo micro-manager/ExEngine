@@ -3,15 +3,13 @@ Base class for all device_implementations that integrates with the execution eng
 """
 from abc import ABCMeta, ABC
 from functools import wraps
-from typing import Any, Dict, Callable, Sequence, Optional, Tuple, Iterable, Union
+from typing import Any, Sequence, Optional, Tuple, Iterable, Union
 from weakref import WeakSet
-from dataclasses import dataclass
 
-from .ex_event_base import ExecutorEvent
-from .executor import ExecutionEngine
 import threading
 import sys
 
+from .executor import MethodCallEvent, GetAttrEvent, SetAttrEvent
 
 
 def _initialize_thread_patching():
@@ -56,42 +54,6 @@ if not hasattr(threading.Thread, '_monkey_patched_start'):
     _python_debugger_active, _within_executor_threads = _initialize_thread_patching()
     _no_executor_attrs = ['_name', '_no_executor', '_no_executor_attrs', '_thread_name']
 
-@dataclass
-class MethodCallEvent(ExecutorEvent):
-
-    def __init__(self, method_name: str, args: tuple, kwargs: Dict[str, Any], instance: Any):
-        super().__init__()
-        self.method_name = method_name
-        self.args = args
-        self.kwargs = kwargs
-        self.instance = instance
-
-    def execute(self):
-        method = getattr(self.instance, self.method_name)
-        return method(*self.args, **self.kwargs)
-
-class GetAttrEvent(ExecutorEvent):
-
-    def __init__(self, attr_name: str, instance: Any, method: Callable):
-        super().__init__()
-        self.attr_name = attr_name
-        self.instance = instance
-        self.method = method
-
-    def execute(self):
-        return self.method(self.instance, self.attr_name)
-
-class SetAttrEvent(ExecutorEvent):
-
-    def __init__(self, attr_name: str, value: Any, instance: Any, method: Callable):
-        super().__init__()
-        self.attr_name = attr_name
-        self.value = value
-        self.instance = instance
-        self.method = method
-
-    def execute(self):
-        self.method(self.instance, self.attr_name, self.value)
 
 class DeviceMetaclass(ABCMeta):
     """
@@ -124,10 +86,10 @@ class DeviceMetaclass(ABCMeta):
                 return attr_value(self, *args, **kwargs)
             # check for method-level preferred thread name first, then class-level
             thread_name = getattr(attr_value, '_thread_name', None) or getattr(self, '_thread_name', None)
-            if ExecutionEngine.on_any_executor_thread():
+            #if ExecutionEngine.on_any_executor_thread():
                 # check for device-level preferred thread
-                if thread_name is None or threading.current_thread().name == thread_name:
-                    return attr_value(self, *args, **kwargs)
+            #    if thread_name is None or threading.current_thread().name == thread_name:
+            #        return attr_value(self, *args, **kwargs)
             event = MethodCallEvent(method_name=attr_name, args=args, kwargs=kwargs, instance=self)
             return self._engine.submit(event, thread_name=thread_name).await_execution()
 
@@ -190,10 +152,10 @@ class DeviceMetaclass(ABCMeta):
             if DeviceMetaclass._is_reroute_exempted_thread():
                 return getattribute_with_fallback(self, name)
             thread_name = getattr(self, '_thread_name', None)
-            if ExecutionEngine.on_any_executor_thread():
-                # check for device-level preferred thread
-                if thread_name is None or threading.current_thread().name == thread_name:
-                    return getattribute_with_fallback(self, name)
+            #if ExecutionEngine.on_any_executor_thread():
+            #    # check for device-level preferred thread
+            #    if thread_name is None or threading.current_thread().name == thread_name:
+            #        return getattribute_with_fallback(self, name)
             event = GetAttrEvent(attr_name=name, instance=self, method=getattribute_with_fallback)
             return self._engine.submit(event, thread_name=thread_name).await_execution()
 
@@ -203,10 +165,10 @@ class DeviceMetaclass(ABCMeta):
             if DeviceMetaclass._is_reroute_exempted_thread():
                 return original_setattr(self, name, value)
             thread_name = getattr(self, '_thread_name', None)
-            if ExecutionEngine.on_any_executor_thread():
-                # Check for device-level preferred thread
-                if thread_name is None or threading.current_thread().name == thread_name:
-                    return original_setattr(self, name, value)
+            # if ExecutionEngine.on_any_executor_thread():
+            #     # Check for device-level preferred thread
+            #     if thread_name is None or threading.current_thread().name == thread_name:
+            #         return original_setattr(self, name, value)
             event = SetAttrEvent(attr_name=name, value=value, instance=self, method=original_setattr)
             self._engine.submit(event, thread_name=thread_name).await_execution()
 
@@ -239,7 +201,7 @@ class Device(ABC, metaclass=DeviceMetaclass):
     methods) by defining a getter and setter method for the property.
     """
 
-    def __init__(self, engine: ExecutionEngine, name: str, no_executor: bool = False, no_executor_attrs: Sequence[str] = ('_name', )):
+    def __init__(self, engine: "ExecutionEngine", name: str, no_executor: bool = False, no_executor_attrs: Sequence[str] = ('_name', )):
         """
         Create a new device
 

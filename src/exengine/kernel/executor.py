@@ -4,8 +4,8 @@ Class that executes acquistion events across a pool of threads
 import threading
 import warnings
 import traceback
-import weakref
-from typing import Union, Iterable, Callable, Type
+from dataclasses import dataclass
+from typing import Union, Iterable, Callable, Type, Dict, Any
 import queue
 import inspect
 
@@ -26,6 +26,12 @@ from .queue import PriorityQueue, Queue, Shutdown
 _MAIN_THREAD_NAME = 'MainExecutorThread'
 _ANONYMOUS_THREAD_NAME = 'AnonymousExecutorThread'
 
+class DeviceBase:
+    __slots__ = ('_engine', '_device')
+    def __init__(self, engine, wrapped_device):
+        self._engine = engine
+        self._device = wrapped_device
+
 class MultipleExceptions(Exception):
     def __init__(self, exceptions: list[Exception]):
         self.exceptions = exceptions
@@ -45,6 +51,76 @@ class ExecutionEngine:
         self._notification_thread = None
         self._thread_managers = {}
         self._start_new_thread(_MAIN_THREAD_NAME)
+
+
+
+    def register(self, id: str, obj: object):
+        """
+        Wraps an object for use with the ExecutionEngine
+
+        The wrapper exposes the public properties and attributes of the wrapped object, converting
+        all get and set access, as well as method calls to Events.
+        Private methods and attributes are not exposed.
+
+        After wrapping, the original object should not be used directly anymore.
+        All access should be done through the wrapper, which takes care of thread safety, synchronization, etc.
+
+        Args:
+            id: Unique id (name) of the device, used by the ExecutionEngine.
+            obj: object to wrap. The object should only be registered once. Use of the original object should be avoided after wrapping,
+                since access to the original object is not thread safe or otherwise managed by the ExecutionEngine.
+        """
+        #
+        if any(d is obj for d in self._devices) or isinstance(obj, DeviceBase):
+            raise ValueError("Object already registered")
+
+        # get a list of all properties and methods, including the ones in base classes
+        # Also process class annotations, for attributes that are not properties
+        class_hierarchy = inspect.getmro(obj.__class__)
+        all_dict = {}
+        for c in class_hierarchy[::-1]:
+            all_dict.update(c.__dict__)
+            annotations = c.__dict__.get('__annotations__', {})
+            all_dict.update(annotations)
+
+        # add all attributes that are not already in the dict
+        for n, a in obj.__dict__.items():
+            if not n.startswith("_") and n not in all_dict:
+                all_dict[n] = None
+
+        # create the wrapper class
+        class_dict = {}
+        slots = []
+        for name, attribute in all_dict.items():
+            if name.startswith('_'):
+                continue  # skip private attributes
+
+            if inspect.isfunction(attribute):
+                def method(self, *args, _name=name, **kwargs):
+                    event = MethodCallEvent(method_name=_name, args=args, kwargs=kwargs, instance=self._device)
+                    return self._engine.submit(event)
+
+                class_dict[name] = method
+            else:
+                def getter(self, _name=name):
+                    event = GetAttrEvent(attr_name=_name, instance=self._device, method=getattr)
+                    return self._engine.submit(event).await_execution()
+
+                def setter(self, value, _name=name):
+                    event = SetAttrEvent(attr_name=_name, value=value, instance=self._device, method=setattr)
+                    self._engine.submit(event).await_execution()
+
+                has_setter = not isinstance(attribute, property) or attribute.fset is not None
+                class_dict[name] = property(getter, setter if has_setter else None, None, f"Wrapped attribute {name}")
+                if not isinstance(attribute, property):
+                    slots.append(name)
+
+        class_dict['__slots__'] = () # prevent addition of new attributes.
+        WrappedObject = type('_' + obj.__class__.__name__, (DeviceBase,), class_dict)
+        # todo: cache dynamically generated classes
+        wrapped = WrappedObject(self,obj)
+        self.register_device(id, wrapped)
+        return wrapped
 
     def subscribe_to_notifications(self, subscriber: Callable[[Notification], None],
                                    notification_type: Union[NotificationCategory, Type] = None
@@ -393,3 +469,42 @@ class _ExecutionThreadManager:
         self._queue.shutdown(immediately=False)
         self.thread.join()
 
+
+@dataclass
+class MethodCallEvent(ExecutorEvent):
+
+    def __init__(self, method_name: str, args: tuple, kwargs: Dict[str, Any], instance: Any):
+        super().__init__()
+        self.method_name = method_name
+        self.args = args
+        self.kwargs = kwargs
+        self.instance = instance
+
+    def execute(self):
+        method = getattr(self.instance, self.method_name)
+        return method(*self.args, **self.kwargs)
+
+
+class GetAttrEvent(ExecutorEvent):
+
+    def __init__(self, attr_name: str, instance: Any, method: Callable):
+        super().__init__()
+        self.attr_name = attr_name
+        self.instance = instance
+        self.method = method
+
+    def execute(self):
+        return self.method(self.instance, self.attr_name)
+
+
+class SetAttrEvent(ExecutorEvent):
+
+    def __init__(self, attr_name: str, value: Any, instance: Any, method: Callable):
+        super().__init__()
+        self.attr_name = attr_name
+        self.value = value
+        self.instance = instance
+        self.method = method
+
+    def execute(self):
+        self.method(self.instance, self.attr_name, self.value)

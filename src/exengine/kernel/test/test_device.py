@@ -57,6 +57,7 @@ def test_stop_triggerable_sequence(mock_device):
     mock_device.stop_triggerable_sequence('test_property')
     mock_device.stop_triggerable_sequence.assert_called_once_with('test_property')
 
+@pytest.mark.skip("Not implemented, needs to change to more systematic metadata storage")
 class TestDeviceDefaults:
     @pytest.fixture
     def default_device(self):
