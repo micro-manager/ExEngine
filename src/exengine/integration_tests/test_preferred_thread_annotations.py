@@ -21,11 +21,9 @@ class DecoratedEvent(ThreadRecordingEvent):
 
 class TestDevice(Device):
 
-    def __init__(self, name, engine):
-        super().__init__(engine=engine, name=name, no_executor_attrs=('_attribute', 'set_attribute_thread',
-                                                  'get_attribute_thread', 'regular_method_thread',
-                                                  'decorated_method_thread'))
+    def __init__(self, _name, _engine):
         self._attribute = 123
+        self.set_attribute_thread = "Not set"
 
     @property
     def attribute(self):
@@ -48,10 +46,7 @@ class TestDevice(Device):
 @on_thread("CustomDeviceThread")
 class CustomThreadTestDevice(Device):
 
-    def __init__(self, engine, name):
-        super().__init__(engine, name, no_executor_attrs=('_attribute',
-                                                  'set_attribute_thread', 'get_attribute_thread',
-                                                  'regular_method_thread', 'decorated_method_thread'))
+    def __init__(self, _name, _engine):
         self._attribute = 123
 
     @property
@@ -105,6 +100,7 @@ def test_device_attribute_access(engine):
     """
     device = TestDevice("TestDevice", engine)
     device.attribute = 'something'
+    read_back = device.attribute
     assert device.set_attribute_thread == _MAIN_THREAD_NAME
 
 def test_device_regular_method_access(engine):
