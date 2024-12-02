@@ -64,7 +64,7 @@ def test_notify_execution_complete(execution_future):
     thread = threading.Thread(target=complete_event)
     thread.start()
     execution_future.await_execution(timeout=5)
-    assert execution_future._event_complete
+    assert execution_future._event_complete.is_set()
 
 
 def test_notify_data(execution_future):

@@ -15,10 +15,9 @@ class ExecutionFuture:
 
     def __init__(self, event: 'ExecutorEvent'):
         self.event = event
-        self._event_complete_condition: threading.Condition = threading.Condition()
         self._data_notification_condition: threading.Condition = threading.Condition()
         self._generic_notification_condition: threading.Condition = threading.Condition()
-        self._event_complete = False
+        self._event_complete = threading.Event()
 
 
         self._acquired_data_coordinates: Set[DataCoordinates] = set()
@@ -40,10 +39,9 @@ class ExecutionFuture:
         Block until the event is complete. If event.execute returns a value, it will be returned here.
         If event.execute raises an exception, it will be raised here as well
         """
-        with self._event_complete_condition:
-            while not self._event_complete:
-                if not self._event_complete_condition.wait(timeout):
-                    raise TimeoutError("Timed out waiting for event to complete")
+        print(f"awaiting{self.event}")
+        if not self._event_complete.wait(timeout):
+            raise TimeoutError("Timed out waiting for event to complete")
         if self._exception is not None:
             raise self._exception
         return self._return_value
@@ -52,18 +50,15 @@ class ExecutionFuture:
         """
         Check if the event has completed
         """
-        with self._event_complete_condition:
-            return self._event_complete
+        return self._event_complete.is_set()
 
     def _notify_execution_complete(self, return_value: Any = None, exception: Exception = None):
         """
         Notify the future that the event has completed
         """
-        with self._event_complete_condition:
-            self._return_value = return_value
-            self._exception = exception
-            self._event_complete = True
-            self._event_complete_condition.notify_all()
+        self._return_value = return_value
+        self._exception = exception
+        self._event_complete.set()
 
 
     def _notify_of_event_notification(self, notification: Notification):

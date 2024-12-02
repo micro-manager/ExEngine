@@ -46,10 +46,23 @@ class ExecutorEvent(ABC, metaclass=_ExecutorEventMeta):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self._num_retries_on_exception = 0
+        self._priority = 1 # lower number means higher priority
         self._finished = False
         self._initialized = False
         # Check for method-level preferred thread name first, then class-level
         self._thread_name = getattr(self.execute, '_thread_name', None) or getattr(self.__class__, '_thread_name', None)
+
+    def __lt__(self, other) -> bool:
+        """Implement the < operator to allow sorting events by priority"""
+        if other is None:
+            return True # always put 'None' at the end of the queue
+        return self._priority < other._priority
+
+    def __gt__(self, other) -> bool:
+        """Implement the > operator to allow sorting events by priority"""
+        if other is None:
+            return False
+        return self._priority > other._priority
 
     def _pre_execution(self, engine) -> ExecutionFuture:
         """
@@ -95,17 +108,22 @@ class ExecutorEvent(ABC, metaclass=_ExecutorEventMeta):
         Method that is called after the event is executed to update acquisition futures about the event's status.
         This is called automatically by the Executor and should not be overriden by subclasses.
 
+        This method signals that the future is complete, so that any thread waiting on it can proceed.
+
         Args:
             return_value: Return value of the event
             exception: Exception that was raised during execution, if any
         """
         if self._future_weakref is None:
             raise Exception("Future not set for event")
-        future = self._future_weakref()
         self.finished = True
-        self._engine.publish_notification(EventExecutedNotification(payload=exception))
-        if future is not None:
-            future._notify_execution_complete(return_value, exception)
+        try:
+            self._engine.publish_notification(EventExecutedNotification(payload=exception))
+        finally:
+            future = self._future_weakref()
+            if future is not None:
+                print(f"Event {self} finished, notifying future")
+                future._notify_execution_complete(return_value, exception)
 
 
 
@@ -116,15 +134,14 @@ class AnonymousCallableEvent(ExecutorEvent):
     The callable object should take no arguments and optionally return a value.
     """
     def __init__(self, callable_obj: Callable[[], Any]):
-        super().__init__()
-        self.callable_obj = callable_obj
         # Check if the callable has no parameters (except for 'self' in case of methods)
         if not callable(callable_obj):
             raise TypeError("Callable object must be a function or method")
-        signature = inspect.signature(callable_obj)
-        if not all(param.default != param.empty or param.kind == param.VAR_POSITIONAL for param in
-               signature.parameters.values()):
+        if not inspect.signature(callable_obj).bind():
             raise TypeError("Callable object must take no arguments")
+
+        super().__init__()
+        self.callable_obj = callable_obj
 
 
     def execute(self):

@@ -32,13 +32,12 @@ def mock_storage():
 @pytest.fixture
 def mock_execution_engine(monkeypatch):
     mock_engine = Mock(spec=ExecutionEngine)
-    monkeypatch.setattr(ExecutionEngine, 'get_instance', lambda: mock_engine)
     return mock_engine
 
 
 @pytest.fixture
 def data_handler(mock_storage, mock_execution_engine):
-    return DataHandler(mock_storage, _executor=mock_execution_engine)
+    return DataHandler(engine=mock_execution_engine, storage=mock_storage)
 
 
 def test_notification_types_inheritance():

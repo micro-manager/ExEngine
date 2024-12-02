@@ -2,20 +2,33 @@
 Class that executes acquistion events across a pool of threads
 """
 import threading
-from collections import deque
-from typing import Deque
 import warnings
 import traceback
-from typing import Union, Iterable, Callable, Type
+from dataclasses import dataclass
+from typing import Union, Iterable, Callable, Type, Dict, Any
 import queue
 import inspect
 
 from .notification_base import Notification, NotificationCategory
 from .ex_event_base import ExecutorEvent, AnonymousCallableEvent
 from .ex_future import ExecutionFuture
+from .queue import PriorityQueue, Queue, Shutdown
+
+# todo: Add shutdown to __del__
+# todo: simplify worker threads:
+#   - remove enqueing on free thread -> replace by a thread pool mechanism
+#   - decouple enqueing and dequeing (related)
+#   - remove is_free and related overhead
+# todo: simplify ExecutorEvent class and lifecycle
 
 _MAIN_THREAD_NAME = 'MainExecutorThread'
 _ANONYMOUS_THREAD_NAME = 'AnonymousExecutorThread'
+
+class DeviceBase:
+    __slots__ = ('_engine', '_device')
+    def __init__(self, engine, wrapped_device):
+        self._engine = engine
+        self._device = wrapped_device
 
 class MultipleExceptions(Exception):
     def __init__(self, exceptions: list[Exception]):
@@ -24,32 +37,88 @@ class MultipleExceptions(Exception):
         super().__init__("Multiple exceptions occurred:\n" + "\n".join(messages))
 
 class ExecutionEngine:
-
-    _instance = None
-    _lock = threading.Lock()
     _debug = False
 
-    def __new__(cls, *args, **kwargs):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-        return cls._instance
-
     def __init__(self):
-        self._exceptions = queue.Queue()
+        self._exceptions = Queue()
         self._devices = {}
-        self._notification_queue = queue.Queue()
+        self._notification_queue = Queue()
         self._notification_subscribers: list[Callable[[Notification], None]] = []
         self._notification_subscriber_filters: list[Union[NotificationCategory, Type]] = []
         self._notification_lock = threading.Lock()
         self._notification_thread = None
-        self._shutdown_event = threading.Event()
+        self._thread_managers = {}
+        self._start_new_thread(_MAIN_THREAD_NAME)
 
-        with self._lock:
-            if not hasattr(self, '_initialized'):
-                self._thread_managers = {}
-                self._start_new_thread(_MAIN_THREAD_NAME)
-                self._initialized = True
+
+
+    def register(self, id: str, obj: object):
+        """
+        Wraps an object for use with the ExecutionEngine
+
+        The wrapper exposes the public properties and attributes of the wrapped object, converting
+        all get and set access, as well as method calls to Events.
+        Private methods and attributes are not exposed.
+
+        After wrapping, the original object should not be used directly anymore.
+        All access should be done through the wrapper, which takes care of thread safety, synchronization, etc.
+
+        Args:
+            id: Unique id (name) of the device, used by the ExecutionEngine.
+            obj: object to wrap. The object should only be registered once. Use of the original object should be avoided after wrapping,
+                since access to the original object is not thread safe or otherwise managed by the ExecutionEngine.
+        """
+        #
+        if any(d is obj for d in self._devices) or isinstance(obj, DeviceBase):
+            raise ValueError("Object already registered")
+
+        # get a list of all properties and methods, including the ones in base classes
+        # Also process class annotations, for attributes that are not properties
+        class_hierarchy = inspect.getmro(obj.__class__)
+        all_dict = {}
+        for c in class_hierarchy[::-1]:
+            all_dict.update(c.__dict__)
+            annotations = c.__dict__.get('__annotations__', {})
+            all_dict.update(annotations)
+
+        # add all attributes that are not already in the dict
+        for n, a in obj.__dict__.items():
+            if not n.startswith("_") and n not in all_dict:
+                all_dict[n] = None
+
+        # create the wrapper class
+        class_dict = {}
+        slots = []
+        for name, attribute in all_dict.items():
+            if name.startswith('_'):
+                continue  # skip private attributes
+
+            if inspect.isfunction(attribute):
+                def method(self, *args, _name=name, **kwargs):
+                    event = MethodCallEvent(method_name=_name, args=args, kwargs=kwargs, instance=self._device)
+                    return self._engine.submit(event)
+
+                class_dict[name] = method
+            else:
+                def getter(self, _name=name):
+                    event = GetAttrEvent(attr_name=_name, instance=self._device, method=getattr)
+                    return self._engine.submit(event).await_execution()
+
+                def setter(self, value, _name=name):
+                    event = SetAttrEvent(attr_name=_name, value=value, instance=self._device, method=setattr)
+                    self._engine.submit(event).await_execution()
+
+                has_setter = not isinstance(attribute, property) or attribute.fset is not None
+                class_dict[name] = property(getter, setter if has_setter else None, None, f"Wrapped attribute {name}")
+                if not isinstance(attribute, property):
+                    slots.append(name)
+
+        class_dict['__slots__'] = () # prevent addition of new attributes.
+        WrappedObject = type('_' + obj.__class__.__name__, (DeviceBase,), class_dict)
+        # todo: cache dynamically generated classes
+        wrapped = WrappedObject(self,obj)
+        self._devices[id] = wrapped
+        return wrapped
 
     def subscribe_to_notifications(self, subscriber: Callable[[Notification], None],
                                    notification_type: Union[NotificationCategory, Type] = None
@@ -92,18 +161,23 @@ class ExecutionEngine:
             self._notification_subscriber_filters.pop(index)
 
     def _notification_thread_run(self):
-        while not self._shutdown_event.is_set() or self._notification_queue.qsize() > 0:
-            try:
-                notification = self._notification_queue.get(timeout=1)
-            except queue.Empty:
-                continue
-            with self._notification_lock:
-                for subscriber, filter in zip(self._notification_subscribers, self._notification_subscriber_filters):
-                    if filter is not None and isinstance(filter, type) and not isinstance(notification, filter):
-                        continue  # not interested in this type
-                    if filter is not None and isinstance(filter, NotificationCategory) and notification.category != filter:
-                        continue
-                    subscriber(notification)
+        try:
+            while True:
+                notification = self._notification_queue.get()
+                try:
+                    with self._notification_lock:
+                        for subscriber, filter in zip(self._notification_subscribers, self._notification_subscriber_filters):
+                            if filter is not None and isinstance(filter, type) and not isinstance(notification, filter):
+                                continue  # not interested in this type
+                            if filter is not None and isinstance(filter, NotificationCategory) and notification.category != filter:
+                                continue
+                            subscriber(notification)
+                except Exception as e:
+                    self._log_exception(e)
+                finally:
+                    self._notification_queue.task_done()
+        except Shutdown:
+            pass
 
     def publish_notification(self, notification: Notification):
         """
@@ -111,57 +185,35 @@ class ExecutionEngine:
         """
         self._notification_queue.put(notification)
 
-    @classmethod
-    def get_instance(cls) -> 'ExecutionEngine':
-        return cls._instance
-
-    @classmethod
-    def get_device(cls, device_name):
+    def __getitem__(self, device_id: str):
         """
         Get a device by name
-        """
-        if device_name not in cls.get_instance()._devices:
-            raise ValueError(f"No device with name {device_name}")
-        return cls.get_instance()._devices[device_name]
 
-    @classmethod
-    def register_device(cls, name, device):
+        Args:
+            device_id: unique id of the device that was used in the call to register_device.
+        Returns:
+            device
+        Raises:
+            KeyError if a device with this id is not found.
         """
-        Called automatically when a Device is created so that the ExecutionEngine can keep track of all devices
-        and look them up by their string names
-        """
-        # Make sure there's not already a device with this name
-        executor = cls.get_instance()
-        if name is not None:
-            # only true after initialization, but this gets called after all the subclass constructors
-            if name in executor._devices and executor._devices[name] is not device:
-                raise ValueError(f"Device with name {name} already exists")
-            executor._devices[name] = device
+        return self._devices[device_id]
 
-    @classmethod
-    def on_main_executor_thread(cls):
-        """
-        Check if the current thread is an executor thread
-        """
-        return threading.current_thread().name is _MAIN_THREAD_NAME
-
-    @classmethod
-    def on_any_executor_thread(cls):
-        if ExecutionEngine.get_instance() is None:
-            raise RuntimeError("on_any_executor_thread: ExecutionEngine has not been initialized")
+    @staticmethod
+    def on_any_executor_thread():
+        #todo: remove
         result = (hasattr(threading.current_thread(), 'execution_engine_thread')
                   and threading.current_thread().execution_engine_thread)
         return result
 
     def _start_new_thread(self, name):
-        self._thread_managers[name] = _ExecutionThreadManager(name)
+        self._thread_managers[name] = _ExecutionThreadManager(self, name)
 
-    def set_debug_mode(self, debug):
+    @staticmethod
+    def set_debug_mode(debug):
         ExecutionEngine._debug = debug
 
-    @classmethod
-    def _log_exception(cls, exception):
-        ExecutionEngine.get_instance()._exceptions.put(exception)
+    def _log_exception(self, exception):
+        self._exceptions.put(exception)
 
     def check_exceptions(self):
         """
@@ -176,7 +228,7 @@ class ExecutionEngine:
             else:
                 raise MultipleExceptions(exceptions)
 
-    def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent]], thread_name=None,
+    def submit(self, event_or_events: Union[ExecutorEvent, Iterable[ExecutorEvent], Callable], thread_name=None,
                prioritize: bool = False, use_free_thread: bool = False) -> Union[ExecutionFuture, Iterable[ExecutionFuture]]:
         """
         Submit one or more acquisition events or callable objects for execution.
@@ -281,18 +333,17 @@ class ExecutionEngine:
         # For now just let the devices be garbage collected.
         # TODO: add explicit shutdowns for devices here?
         self._devices = None
-        self._shutdown_event.set()
         for thread in self._thread_managers.values():
             thread.shutdown()
         for thread in self._thread_managers.values():
             thread.join()
 
-        # Make sure the notification thread is stopped
+        # Make sure the notification thread is stopped if it was started at all
         if self._notification_thread is not None:
-            # It was never started if no one subscribed
+            self._notification_queue.shutdown()
             self._notification_thread.join()
-        # delete singleton instance
-        ExecutionEngine._instance = None
+
+
 
 
 class _ExecutionThreadManager:
@@ -305,113 +356,141 @@ class _ExecutionThreadManager:
     or events in its queue with the is_free method.
 
     """
-    _deque: Deque[ExecutorEvent]
-    thread: threading.Thread
-
-    def __init__(self, name='UnnamedExectorThread'):
-        super().__init__()
+    def __init__(self, engine: ExecutionEngine, name='UnnamedExectorThread'):
         self.thread = threading.Thread(target=self._run_thread, name=name)
         self.thread.execution_engine_thread = True
-        self._deque = deque()
-        self._shutdown_event = threading.Event()
-        self._terminate_event = threading.Event()
+        # todo: use single queue for all threads in a pool
+        # todo: custom queue class or re-queuing mechanism that allows checking requirements for starting the operation?
+        self._queue = PriorityQueue()
         self._exception = None
-        self._event_executing = False
-        self._addition_condition = threading.Condition()
+        self._engine = engine
+        self._event_executing = threading.Event()
         self.thread.start()
 
     def join(self):
         self.thread.join()
 
     def _run_thread(self):
-        event = None
-        while True:
-            if self._terminate_event.is_set():
-                return
-            if self._shutdown_event.is_set() and not self._deque:
-                return
-            # Event retrieval loop
-            while event is None:
-                with (self._addition_condition):
-                    if not self._deque:
-                        # wait until something is in the queue
-                        self._addition_condition.wait()
-                    if self._terminate_event.is_set():
-                        return
-                    if self._shutdown_event.is_set() and not self._deque:
-                        # awoken by a shutdown event and the queue is empty
-                        return
-                    event: ExecutorEvent = self._deque.popleft()
-                    if not hasattr(event, '_num_retries_on_exception'):
-                        warnings.warn("Event does not have num_retries_on_exception attribute, setting to 0")
-                        event._num_retries_on_exception = 0
-                    num_retries = event._num_retries_on_exception
-                    self._event_executing = True
+        """Main loop for worker threads.
 
-            # Event execution loop
-            exception = None
-            return_val = None
-            for attempt_number in range(event._num_retries_on_exception + 1):
-                if self._terminate_event.is_set():
-                    return  # Executor has been terminated
+        A thread is stopped by sending a TerminateThreadEvent to it and optionally setting the _terminate_now flag.
+        When a TerminateThreadEvent is encountered in the queue, the thread will terminate and discard all subsequent events.
+        todo: possible race condition when high-priority event is added after termination event
+        If the _terminate_now flag is set, the thread will terminate as soon as possible.
+        """
+        return_val = None
+        try:
+            while True:
+                event = self._queue.get(block=True) # raises Shutdown exception when thread is shutting down
+                self._exception = None
                 try:
+                    if event._finished:
+                        # this is unrecoverable, never retry
+                        # todo: move this check to the submit code, this will give earlier and more accurate feedback
+                        event._retries_on_execution = 0
+                        raise RuntimeError("Event ", event, " was already executed")
+
+                    self._event_executing.set()
                     if ExecutionEngine._debug:
                         print("Executing event", event.__class__.__name__, threading.current_thread())
-                    if event._finished:
-                        raise RuntimeError("Event ", event, " was already executed")
                     return_val = event.execute()
                     if ExecutionEngine._debug:
                         print("Finished executing", event.__class__.__name__, threading.current_thread())
-                    break
+                    self._event_executing.clear()
+
                 except Exception as e:
-                    warnings.warn(f"{e} during execution of {event}" + (", retrying {num_retries} more times"
-                                  if num_retries > 0 else ""))
-                    # traceback.print_exc()
-                    exception = e
-            if exception is not None:
-                ExecutionEngine.get_instance()._log_exception(exception)
-            event._post_execution(return_value=return_val, exception=exception)
-            with self._addition_condition:
-                self._event_executing = False
-            event = None
+                    if event._num_retries_on_exception > 0:
+                        event._num_retries_on_exception -= 1
+                        event.priority = 0 # reschedule with high priority
+                        # log warning and try again
+                        warnings.warn(f"{e} during execution of {event}" +
+                                  f", retrying {event._num_retries_on_exception} more times")
+                        continue # don't call post_execution just yet
+                    else:
+                        # give up
+                        self._engine._log_exception(e)
+                        self._exception = e
+
+                finally:
+                    self._queue.task_done()
+
+                try:
+                    event._post_execution(return_value=return_val, exception=self._exception)
+                except Exception as e:
+                    self._engine._log_exception(e)
+
+        except Shutdown:
+            pass
+
 
     def is_free(self):
         """
         return true if an event is not currently being executed and the queue is empty
         """
-        with self._addition_condition:
-            return not self._event_executing and not self._deque and not \
-                    self._terminate_event.is_set() and not self._shutdown_event.is_set()
+        return not self._event_executing.is_set() and self._queue.empty()
 
     def submit_event(self, event, prioritize=False):
         """
         Submit an event for execution on this thread. If prioritize is True, the event will be executed before any other
         events in the queue.
+
+        Raises:
+            Shutdown: If the thread is shutting down
         """
-        with self._addition_condition:
-            if self._shutdown_event.is_set() or self._terminate_event.is_set():
-                raise RuntimeError("Cannot submit event to a thread that has been shutdown")
-            if prioritize:
-                self._deque.appendleft(event)
-            else:
-                self._deque.append(event)
-            self._addition_condition.notify_all()
+        if prioritize:
+            event.priority = 0 # place at front of queue
+        self._queue.put(event)
 
     def terminate(self):
         """
         Stop the thread immediately, without waiting for the current event to finish
         """
-        with self._addition_condition:
-            self._terminate_event.set()
-            self._shutdown_event.set()
-            self._addition_condition.notify_all()
+        self._queue.shutdown(immediately=True)
         self.thread.join()
+
     def shutdown(self):
         """
         Stop the thread and wait for it to finish
         """
-        with self._addition_condition:
-            self._shutdown_event.set()
-            self._addition_condition.notify_all()
+        self._queue.shutdown(immediately=False)
         self.thread.join()
 
+
+@dataclass
+class MethodCallEvent(ExecutorEvent):
+
+    def __init__(self, method_name: str, args: tuple, kwargs: Dict[str, Any], instance: Any):
+        super().__init__()
+        self.method_name = method_name
+        self.args = args
+        self.kwargs = kwargs
+        self.instance = instance
+
+    def execute(self):
+        method = getattr(self.instance, self.method_name)
+        return method(*self.args, **self.kwargs)
+
+
+class GetAttrEvent(ExecutorEvent):
+
+    def __init__(self, attr_name: str, instance: Any, method: Callable):
+        super().__init__()
+        self.attr_name = attr_name
+        self.instance = instance
+        self.method = method
+
+    def execute(self):
+        return self.method(self.instance, self.attr_name)
+
+
+class SetAttrEvent(ExecutorEvent):
+
+    def __init__(self, attr_name: str, value: Any, instance: Any, method: Callable):
+        super().__init__()
+        self.attr_name = attr_name
+        self.value = value
+        self.instance = instance
+        self.method = method
+
+    def execute(self):
+        self.method(self.instance, self.attr_name, self.value)

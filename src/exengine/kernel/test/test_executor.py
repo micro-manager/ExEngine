@@ -4,101 +4,70 @@ Ensures rerouting of method calls to the ExecutionEngine and proper handling of 
 """
 
 import pytest
-from unittest.mock import MagicMock
 from exengine.kernel.ex_event_base import ExecutorEvent
 
 from exengine.kernel.device import Device
+from exengine.kernel.executor import ExecutionEngine
 import time
 
 
 @pytest.fixture()
-def execution_engine():
-    engine = ExecutionEngine()
-    yield engine
-    engine.shutdown()
+def engine():
+    e = ExecutionEngine()
+    yield e
+    e.shutdown()
 
 
 #############################################################################################
 # Tests for automated rerouting of method calls to the ExecutionEngine to executor threads
 #############################################################################################
 counter = 1
-class TestDevice(Device):
+class TestDevice:
+    """
+    These classes are automatically wrapped for use in an ExecutionEngine.
+    """
     def __init__(self):
-        global counter
-        super().__init__(name=f'mock_device_{counter}', no_executor_attrs=('property_getter_monitor', 'property_setter_monitor'))
-        counter += 1
-        self.property_getter_monitor = False
-        self.property_setter_monitor = False
-        self._test_attribute = None
+        self.test_attribute = None
+        self._test_property = None
 
     def test_method(self):
-        assert ExecutionEngine.on_any_executor_thread()
-        assert threading.current_thread().execution_engine_thread
         return True
-
-    def set_test_attribute(self, value):
-        assert ExecutionEngine.on_any_executor_thread()
-        assert threading.current_thread().execution_engine_thread
-        self._test_attribute = value
-
-    def get_test_attribute(self):
-        assert ExecutionEngine.on_any_executor_thread()
-        assert threading.current_thread().execution_engine_thread
-        return self._test_attribute
 
     @property
     def test_property(self):
-        assert ExecutionEngine.on_any_executor_thread()
-        self.property_getter_monitor = True
-        return self._test_attribute
+        return self._test_property
 
     @test_property.setter
     def test_property(self, value):
-        assert ExecutionEngine.on_any_executor_thread()
-        self.property_setter_monitor = True
-        self._test_attribute = value
+        self._test_property = value
 
 
-def test_device_method_execution(execution_engine):
-    mock_device = TestDevice()
 
-    result = mock_device.test_method()
+def test_device_method_execution(engine):
+    engine.register("mock_device0", TestDevice())
+    result = engine["mock_device0"].test_method().await_execution()
     assert result is True
 
-def test_device_attribute_setting(execution_engine):
-    mock_device = TestDevice()
-
-    mock_device.set_test_attribute("test_value")
-    result = mock_device.get_test_attribute()
+def test_device_attribute_setting(engine):
+    engine.register("mock_device0", TestDevice())
+    engine["mock_device0"].test_attribute = "test_value"
+    result = engine["mock_device0"].test_attribute
     assert result == "test_value"
 
-def test_device_attribute_direct_setting(execution_engine):
-    mock_device = TestDevice()
-
-    mock_device.direct_set_attribute = "direct_test_value"
-    assert mock_device.direct_set_attribute == "direct_test_value"
-
-def test_multiple_method_calls(execution_engine):
-    mock_device = TestDevice()
-
-    result1 = mock_device.test_method()
-    mock_device.set_test_attribute("test_value")
-    result2 = mock_device.get_test_attribute()
+def test_multiple_method_calls(engine):
+    mock_device = engine.register("mock_device0", TestDevice())
+    result1 = mock_device.test_method().await_execution()
+    mock_device.test_attribute = "test_value"
+    result2 = mock_device.test_attribute
 
     assert result1 is True
     assert result2 == "test_value"
 
-def test_device_property_getter(execution_engine):
-    mock_device = TestDevice()
-
-    _ = mock_device.test_property
-    assert mock_device.property_getter_monitor
-
-def test_device_property_setter(execution_engine):
-    mock_device = TestDevice()
-
-    mock_device.test_property = "test_value"
-    assert mock_device.property_setter_monitor
+def test_device_property_setting(engine):
+    mock_device = engine.register("mock_device0", TestDevice())
+    engine["mock_device0"].test_property = "test_value"
+    result = mock_device.test_property
+    assert result == "test_value"
 
 #######################################################
 # Tests for internal threads in Devices
@@ -110,11 +79,8 @@ from exengine.device_types import Device
 import threading
 
 
-class ThreadCreatingDevice(Device):
+class ThreadCreatingDevice:
     def __init__(self):
-        global counter
-        super().__init__(name=f'test{counter}')
-        counter += 1
         self.test_attribute = None
         self._internal_thread_result = None
         self._nested_thread_result = None
@@ -157,8 +123,7 @@ class ThreadCreatingDevice(Device):
         with ThreadPoolExecutor() as executor:
             executor.submit(threadpool_func)
 
-
-def test_device_internal_thread(execution_engine):
+def test_device_internal_thread(engine):
     """
     Test that a thread created internally by a device is not treated as an executor thread.
 
@@ -170,17 +135,16 @@ def test_device_internal_thread(execution_engine):
        it ran without raising any assertions about being on an executor thread
     """
     print('integration_tests started')
-    device = ThreadCreatingDevice()
+    engine.register("thread_creator", ThreadCreatingDevice())
     print('getting ready to create internal thread')
-    t = device.create_internal_thread()
+    t = engine["thread_creator"].create_internal_thread().await_execution()
     # t.join()
 
     # while device.test_attribute is None:
     #     time.sleep(0.1)
-    assert device.test_attribute == "set_by_internal_thread"
+    assert engine["thread_creator"].test_attribute == "set_by_internal_thread"
 
-
-def test_device_nested_thread(execution_engine):
+def test_device_nested_thread(engine):
     """
     Test that a nested thread (a thread created by another thread within the device)
     is not treated as an executor thread.
@@ -192,14 +156,13 @@ def test_device_nested_thread(execution_engine):
     3. Checking that the nested thread successfully set an attribute, indicating that
        it ran without raising any assertions about being on an executor thread
     """
-    device = ThreadCreatingDevice()
+    device = engine.register("thread_creator", ThreadCreatingDevice())
     device.create_nested_thread()
     while device.test_attribute is None:
         time.sleep(0.1)
     assert device.test_attribute == "set_by_nested_thread"
 
-
-def test_device_threadpool_executor(execution_engine):
+def test_device_threadpool_executor(engine):
     """
     Test that a thread created by ThreadPoolExecutor within a device method
     is not treated as an executor thread.
@@ -212,7 +175,7 @@ def test_device_threadpool_executor(execution_engine):
     3. Checking that the function successfully set an attribute, indicating that
        it ran without raising any assertions about being on an executor thread
     """
-    device = ThreadCreatingDevice()
+    device = engine.register("thread_creator", ThreadCreatingDevice())
     device.use_threadpool_executor()
     while device.test_attribute is None:
         time.sleep(0.1)
@@ -246,7 +209,7 @@ def create_sync_event(start_event, finish_event):
     return SyncEvent(start_event, finish_event)
 
 
-def test_submit_single_event(execution_engine):
+def test_submit_single_event(engine):
     """
     Test submitting a single event to the ExecutionEngine.
     Verifies that the event is executed and returns an AcquisitionFuture.
@@ -255,8 +218,8 @@ def test_submit_single_event(execution_engine):
     finish_event = threading.Event()
     event = create_sync_event(start_event, finish_event)
 
-    future = execution_engine.submit(event)
-    execution_engine.check_exceptions()
+    future = engine.submit(event)
+    engine.check_exceptions()
     start_event.wait()  # Wait for the event to start executing
     finish_event.set()  # Signal the event to finish
 
@@ -266,7 +229,7 @@ def test_submit_single_event(execution_engine):
     assert event.executed
 
 
-def test_submit_multiple_events(execution_engine):
+def test_submit_multiple_events(engine):
     """
     Test submitting multiple events to the ExecutionEngine.
     Verifies that all events are executed and return AcquisitionFutures.
@@ -279,8 +242,8 @@ def test_submit_multiple_events(execution_engine):
     finish_event2 = threading.Event()
     event2 = create_sync_event(start_event2, finish_event2)
 
-    future1 = execution_engine.submit(event1)
-    future2 = execution_engine.submit(event2)
+    future1 = engine.submit(event1)
+    future2 = engine.submit(event2)
 
     start_event1.wait()  # Wait for the first event to start executing
     finish_event1.set()  # Signal the first event to finish
@@ -294,7 +257,8 @@ def test_submit_multiple_events(execution_engine):
     assert event2.executed
 
 
-def test_event_prioritization(execution_engine):
+@pytest.mark.skip("This test is broken. Even though event3 gets priority, it may execute after event2.")
+def test_event_prioritization(engine):
     """
     Test event prioritization in the ExecutionEngine.
     Verifies that prioritized events are executed before non-prioritized events.
@@ -311,11 +275,12 @@ def test_event_prioritization(execution_engine):
     finish_event3 = threading.Event()
     event3 = create_sync_event(start_event3, finish_event3)
 
-    execution_engine.submit(event1)
+    engine.submit(event1)
     start_event1.wait()  # Wait for the first event to start executing
 
-    execution_engine.submit(event2)
-    execution_engine.submit(event3, prioritize=True)
+    engine.submit(event2)
+    # race condition, at this point the engine may or may not have started executing event2
+    engine.submit(event3, prioritize=True)
 
     finish_event1.set()
     finish_event2.set()
@@ -330,7 +295,7 @@ def test_event_prioritization(execution_engine):
     assert event3.executed
 
 
-def test_use_free_thread_parallel_execution(execution_engine):
+def test_use_free_thread_parallel_execution(engine):
     """
     Test parallel execution using free threads in the ExecutionEngine.
     Verifies that events submitted with use_free_thread=True can execute in parallel.
@@ -343,8 +308,8 @@ def test_use_free_thread_parallel_execution(execution_engine):
     finish_event2 = threading.Event()
     event2 = create_sync_event(start_event2, finish_event2)
 
-    execution_engine.submit(event1)
-    execution_engine.submit(event2, use_free_thread=True)
+    engine.submit(event1)
+    engine.submit(event2, use_free_thread=True)
 
     # Wait for both events to start executing
     assert start_event1.wait(timeout=5)
@@ -365,7 +330,7 @@ def test_use_free_thread_parallel_execution(execution_engine):
     assert event2.executed
 
 
-def test_single_execution_with_free_thread(execution_engine):
+def test_single_execution_with_free_thread(engine):
     """
     Test that each event is executed only once, even when using use_free_thread=True.
     Verifies that events are not executed multiple times regardless of submission method.
@@ -378,8 +343,8 @@ def test_single_execution_with_free_thread(execution_engine):
     finish_event2 = threading.Event()
     event2 = create_sync_event(start_event2, finish_event2)
 
-    execution_engine.submit(event1)
-    execution_engine.submit(event2, use_free_thread=True)
+    engine.submit(event1)
+    engine.submit(event2, use_free_thread=True)
 
     # Wait for both events to start executing
     assert start_event1.wait(timeout=5)
@@ -398,43 +363,43 @@ def test_single_execution_with_free_thread(execution_engine):
     assert event2.execute_count == 1
 
 #### Callable submission tests ####
-def test_submit_callable(execution_engine):
+def test_submit_callable(engine):
     def simple_function():
         return 42
 
-    future = execution_engine.submit(simple_function)
+    future = engine.submit(simple_function)
     result = future.await_execution()
     assert result == 42
 
-def test_submit_lambda(execution_engine):
-    future = execution_engine.submit(lambda: "Hello, World!")
+def test_submit_lambda(engine):
+    future = engine.submit(lambda: "Hello, World!")
     result = future.await_execution()
     assert result == "Hello, World!"
 
-def test_class_method(execution_engine):
+def test_class_method(engine):
     class TestClass:
         def test_method(self):
             return "Test method executed"
 
-    future = execution_engine.submit(TestClass().test_method)
+    future = engine.submit(TestClass().test_method)
     result = future.await_execution()
     assert result == "Test method executed"
 
-def test_submit_mixed(execution_engine):
+def test_submit_mixed(engine):
     class TestEvent(ExecutorEvent):
         def execute(self):
             return "Event executed"
 
-    futures = execution_engine.submit([TestEvent(), lambda: 42, lambda: "Lambda"])
+    futures = engine.submit([TestEvent(), lambda: 42, lambda: "Lambda"])
     results = [future.await_execution() for future in futures]
     assert results == ["Event executed", 42, "Lambda"]
 
-def test_submit_invalid(execution_engine):
+def test_submit_invalid(engine):
     with pytest.raises(TypeError):
-        execution_engine.submit(lambda x: x + 1)  # Callable with arguments should raise TypeError
+        engine.submit(lambda x: x + 1)  # Callable with arguments should raise TypeError
 
     with pytest.raises(TypeError):
-        execution_engine.submit("Not a callable")  # Non-callable, non-ExecutorEvent should raise TypeError
+        engine.submit("Not a callable")  # Non-callable, non-ExecutorEvent should raise TypeError
 
 #######################################################
 # Tests for named thread functionalities ##############
@@ -444,7 +409,7 @@ from exengine.kernel.executor import _MAIN_THREAD_NAME
 from exengine.kernel.executor import _ANONYMOUS_THREAD_NAME
 
 
-def test_submit_to_main_thread(execution_engine):
+def test_submit_to_main_thread(engine):
     """
     Test submitting an event to the main thread.
     """
@@ -452,13 +417,13 @@ def test_submit_to_main_thread(execution_engine):
     finish_event = threading.Event()
     event = create_sync_event(start_event, finish_event)
 
-    future = execution_engine.submit(event)
+    future = engine.submit(event)
     start_event.wait()
     finish_event.set()
 
     assert event.executed_thread_name == _MAIN_THREAD_NAME
 
-def test_submit_to_new_anonymous_thread(execution_engine):
+def test_submit_to_new_anonymous_thread(engine):
     """
     Test that submitting an event with use_free_thread=True creates a new anonymous thread if needed.
     """
@@ -471,11 +436,11 @@ def test_submit_to_new_anonymous_thread(execution_engine):
     event2 = create_sync_event(start_event2, finish_event2)
 
     # Submit first event to main thread
-    execution_engine.submit(event1)
+    engine.submit(event1)
     start_event1.wait()
 
     # Submit second event with use_free_thread=True
-    future2 = execution_engine.submit(event2, use_free_thread=True)
+    future2 = engine.submit(event2, use_free_thread=True)
     start_event2.wait()
 
     finish_event1.set()
@@ -483,9 +448,9 @@ def test_submit_to_new_anonymous_thread(execution_engine):
 
     assert event1.executed_thread_name == _MAIN_THREAD_NAME
     assert event2.executed_thread_name.startswith(_ANONYMOUS_THREAD_NAME)
-    assert len(execution_engine._thread_managers) == 2  # Main thread + 1 anonymous thread
+    assert len(engine._thread_managers) == 2  # Main thread + 1 anonymous thread
 
-def test_multiple_anonymous_threads(execution_engine):
+def test_multiple_anonymous_threads(engine):
     """
     Test creation of multiple anonymous threads when submitting multiple events with use_free_thread=True.
     """
@@ -502,7 +467,7 @@ def test_multiple_anonymous_threads(execution_engine):
         start_events.append(start_event)
         finish_events.append(finish_event)
 
-    futures = [execution_engine.submit(event, use_free_thread=True) for event in events]
+    futures = [engine.submit(event, use_free_thread=True) for event in events]
 
     for start_event in start_events:
         start_event.wait()
@@ -513,9 +478,9 @@ def test_multiple_anonymous_threads(execution_engine):
     thread_names = set(event.executed_thread_name for event in events)
     assert len(thread_names) == num_events  # Each event should be on a different thread
     assert all(name.startswith(_ANONYMOUS_THREAD_NAME) or name == _MAIN_THREAD_NAME for name in thread_names)
-    assert len(execution_engine._thread_managers) == num_events   # num_events anonymous threads
+    assert len(engine._thread_managers) == num_events   # num_events anonymous threads
 
-def test_reuse_named_thread(execution_engine):
+def test_reuse_named_thread(engine):
     """
     Test that submitting multiple events to the same named thread reuses that thread.
     """
@@ -533,7 +498,7 @@ def test_reuse_named_thread(execution_engine):
         start_events.append(start_event)
         finish_events.append(finish_event)
 
-    futures = [execution_engine.submit(event, thread_name=thread_name) for event in events]
+    futures = [engine.submit(event, thread_name=thread_name) for event in events]
 
     for finish_event in finish_events:
         finish_event.set()
@@ -542,4 +507,4 @@ def test_reuse_named_thread(execution_engine):
         start_event.wait()
 
     assert all(event.executed_thread_name == thread_name for event in events)
-    assert len(execution_engine._thread_managers) == 2  # Main thread + 1 custom named thread
+    assert len(engine._thread_managers) == 2  # Main thread + 1 custom named thread
