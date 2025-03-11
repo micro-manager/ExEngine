@@ -40,10 +40,7 @@ class CalibrationWidget:
         will automatically provide a callback object that can be used to report progress.
         At every call to the 'update' method of this object, the progress bar in the GUI is updated.
         This also allows the user to cancel the operation, resulting in an asyncio.CancelledError exception.
-    * Inter-object synchronization. In the call to 'run', the Widget *and all its child devices* are locked
-        and form a synchronization group. By default, all actuators in a synchronization group (the stage)
-        wait for all sensors (the cameras) to complete before starting to execute a command. Vice versa,
-        all sensors wait for all actuators to complete before starting to acquire data.
+    * Inter-object synchronization using the 'after' parameter.
     * Asynchronous programming. The 'capture' method of the camera returns a future.
         Instead of storing the frames, the futures are stored in a list. In this case, all measurements may get
         scheduled before the first one is completed.
@@ -69,12 +66,12 @@ class CalibrationWidget:
     def run(self, engine, /, *, _progress):
         _progress.total = self.step_count * 2
         _progress.description = "Calibrating camera magnifications"
-        for axis in ["x", "y"]:
+        for axis in range(2):
             all_images = []
-            start = getattr(stage, axis)
+            start = stage.position[axis]
             for i in range(10):
-                setattr(stage, axis, start + i * self.step_size)
-                frames = [camera.capture() for camera in cameras]
+                move_stage = stage.move_to(axis=axis, position=start + i * self.step_size)
+                frames = [camera.capture(after=move_stage) for camera in cameras]
                 frames[-1].on_complete.append(lambda: _progress.update(1))
                 all_images.append(frames)
 

@@ -70,6 +70,13 @@ class DeviceBase:
 
         self._executor.shutdown(immediately, wait, AnonymousCallableEvent(do_shutdown))
 
+    @staticmethod
+    def map_names(class_dict):
+        """
+        Maps the names of the class to the device
+        """
+        pass
+
 class ExecutionEngine:
     _debug = False
 
@@ -86,7 +93,7 @@ class ExecutionEngine:
         self._notification_thread = None
 
 
-    def register(self, id: str, obj: object):
+    def register(self, id: str, obj: object, schema = DeviceBase):
         """
         Wraps an object for use with the ExecutionEngine
 
@@ -148,7 +155,8 @@ class ExecutionEngine:
                     slots.append(name)
 
         class_dict['__slots__'] = () # prevent addition of new attributes.
-        WrappedObject = type('_' + obj.__class__.__name__, (DeviceBase,), class_dict)
+        schema.map_names(class_dict)
+        WrappedObject = type('_' + obj.__class__.__name__, (schema,), class_dict)
         # todo: cache dynamically generated classes
         wrapped = WrappedObject(self,obj)
         self._devices[id] = wrapped
