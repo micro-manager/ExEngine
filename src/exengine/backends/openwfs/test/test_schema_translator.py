@@ -1,29 +1,10 @@
-from queue import Queue
-
-from openwfs.simulation import StaticSource
-from openwfs.utilities import get_pixel_size
 from exengine import ExecutionEngine
+from openwfs.simulation import StaticSource
 import astropy.units as u
 import numpy as np
 
-from exengine.kernel.executor import DeviceBase
+from exengine.backends.openwfs import CameraSchema
 
-
-class CameraSchema(DeviceBase):
-    def __init__(self, *args):
-        super().__init__(*args)
-        self._frames = Queue()
-
-    @staticmethod
-    def map_names(class_dict):
-        class_dict['exposure'] = class_dict.pop('duration')
-
-    def start(self):
-        self._frames.put(self._device.trigger())
-
-    def pop_data(self):
-        frame = self._frames.get().result()
-        return frame, {"pixel_size": get_pixel_size(frame)}
 
 def test_schema():
     # construct a camera with a random image
@@ -37,6 +18,7 @@ def test_schema():
     camera = engine.register("camera", camera, schema=CameraSchema)
 
     # test the start/pop_next protocol
+    camera.arm() # does nothing, OpenWFS camera is always armed
     camera.start()
     frame, metadata = camera.pop_data()
     print(camera.exposure) # test if the property is present
