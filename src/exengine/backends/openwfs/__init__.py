@@ -3,8 +3,8 @@ from openwfs.utilities import get_pixel_size
 from queue import Queue
 
 class CameraSchema(DeviceBase):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._frames = Queue()
 
     @staticmethod

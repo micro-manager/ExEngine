@@ -1,8 +1,10 @@
 from exengine import ExecutionEngine
 from openwfs.simulation import StaticSource
+from openwfs.plot_utilities import imshow
+from openwfs.simulation.microscope import Microscope
 import astropy.units as u
 import numpy as np
-
+import matplotlib.pyplot as plt
 from exengine.backends.openwfs import CameraSchema
 
 
