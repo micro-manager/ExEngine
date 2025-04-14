@@ -44,7 +44,6 @@ class MockDataStorage(DataStorage):
 @pytest.fixture
 def mock_execution_engine(monkeypatch):
     mock_engine = Mock(spec=ExecutionEngine)
-    monkeypatch.setattr(ExecutionEngine, 'get_instance', lambda: mock_engine)
     return mock_engine
 
 @pytest.fixture
@@ -54,7 +53,7 @@ def mock_data_storage():
 
 @pytest.fixture
 def data_handler(mock_data_storage, mock_execution_engine):
-    dh = DataHandler(mock_data_storage, _executor=mock_execution_engine)
+    dh = DataHandler(mock_execution_engine, mock_data_storage)
     yield dh
     dh.finish()
 
@@ -80,10 +79,11 @@ def test_data_handler_processing_function(mock_data_storage):
     Test that DataHandler can process data using a provided processing function, and that
     data_handler.get() returns the processed data not the original data.
     """
+    engine = ExecutionEngine()
     def process_function(coords, image, metadata):
         return coords, image * 2, metadata
 
-    handler_with_processing = DataHandler(mock_data_storage, process_function)
+    handler_with_processing = DataHandler(engine, mock_data_storage, process_function)
 
     coords = DataCoordinates({"time": 1, "channel": "DAPI", "z": 0})
     image = np.array([[1, 2], [3, 4]], dtype=np.uint16)
