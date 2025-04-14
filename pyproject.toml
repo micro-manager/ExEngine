@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "exengine"
-authors = [{name = "Henry Pinkard", email = "henry.pinkard.open.source@gmail.com"}]
+authors = [{name = "Henry Pinkard", email = "henry.pinkard.open.source@gmail.com"}, {name="Ivo Vellekoop"}]
 license = {file = "LICENSE"}
 classifiers = [
     "License :: OSI Approved :: BSD License",
@@ -14,6 +14,8 @@ dependencies = [
     "pydantic",
     "numpy"
 ]
+requires-python = ">=3.10"
+version = "0.4.0"
 
 dynamic = ["version"]
 description = "Microscopy execution engine with support for multiple hardware backends"
