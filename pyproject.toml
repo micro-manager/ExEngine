@@ -27,11 +27,13 @@ test = ["pytest"]
 # all backends -- this should be the union of all the specific backends below
 all = [
     "mmpycorex",
-    "ndstorage"
+    "ndstorage",
+    "openwfs",
     ]
 
 # device backends
 micromanager = ["mmpycorex"]
+openwfs = ["openwfs"]
 
 # storage backends
 ndstorage = ["ndstorage"]
